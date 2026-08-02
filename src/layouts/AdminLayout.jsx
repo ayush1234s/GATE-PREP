@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
+import NetworkIndicator from '@/components/common/NetworkIndicator'
 
 const ADMIN_NAV = [
   { to: '/admin/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
@@ -85,6 +86,11 @@ const AdminLayout = ({ children }) => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Network Indicator */}
+          <div className="w-auto max-w-[130px] hidden sm:block">
+            <NetworkIndicator compact />
+          </div>
+
           {/* Return to Client Site (Requires Student Login) */}
           <button
             onClick={handleGoToStudentLogin}

@@ -17,6 +17,7 @@ import useUserProgress from '@/hooks/useUserProgress'
 import { CURRICULUM_DATA } from '@/data/curriculumData'
 import { Avatar }   from './Sidebar'
 import toast        from 'react-hot-toast'
+import NetworkIndicator from '@/components/common/NetworkIndicator'
 
 // Page title map
 const PAGE_TITLES = {
@@ -320,6 +321,11 @@ const Navbar = ({ onMenuClick }) => {
 
       {/* Right — Theme Toggle + Notifications + Pro User Pill */}
       <div className="flex items-center gap-2">
+
+        {/* Network Indicator (Responsive) */}
+        <div className="w-auto max-w-[140px] hidden sm:block">
+          <NetworkIndicator compact />
+        </div>
 
         {/* Theme Toggle */}
         <button

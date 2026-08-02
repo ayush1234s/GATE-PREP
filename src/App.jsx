@@ -6,11 +6,15 @@ import { Toaster }      from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import AppRouter        from '@/routes/AppRouter'
+import OfflineModal     from '@/components/common/OfflineModal'
 
 const App = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
+        {/* Global Offline connectivity popup modal */}
+        <OfflineModal />
+
         {/* Global toast notifications */}
         <Toaster
           position="top-right"

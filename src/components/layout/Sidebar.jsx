@@ -20,6 +20,7 @@ import { useAuth }  from '@/contexts/AuthContext'
 import useUserProgress from '@/hooks/useUserProgress'
 import { CURRICULUM_DATA } from '@/data/curriculumData'
 import toast        from 'react-hot-toast'
+import NetworkIndicator from '@/components/common/NetworkIndicator'
 
 // ─── Navigation items ─────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -152,7 +153,12 @@ const SidebarContent = ({ onClose }) => {
         ))}
       </nav>
 
-      {/* ── 3. Subtle Progress Widget ── */}
+      {/* ── 3. Live Network Status Widget ── */}
+      <div className="px-4 mb-3">
+        <NetworkIndicator />
+      </div>
+
+      {/* ── 4. Subtle Progress Widget ── */}
       <div className="px-4 py-3 mx-4 mb-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60">
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
           <span className="flex items-center gap-1.5">
