@@ -47,9 +47,9 @@ const NotificationPanel = ({ onClose }) => {
     toast.success('All notifications cleared')
   }
 
-  const handleDeleteOne = async (e, id) => {
+  const handleDeleteOne = async (e, id, isAdmin) => {
     e.stopPropagation()
-    await deleteNotification(id)
+    await deleteNotification(id, isAdmin)
     toast.success('Notification removed')
   }
 
@@ -69,7 +69,7 @@ const NotificationPanel = ({ onClose }) => {
           </div>
           <div>
             <h3 className="font-bold text-xs text-slate-800 dark:text-white leading-none">Notifications</h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">Real-time completion activity</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Real-time activity &amp; announcements</p>
           </div>
           {notifications.length > 0 && (
             <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
@@ -105,54 +105,90 @@ const NotificationPanel = ({ onClose }) => {
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <p className="text-sm font-bold text-slate-800 dark:text-white">All caught up!</p>
-            <p className="text-xs text-slate-400 mt-0.5">Completed lectures will trigger live updates here.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Completed lectures &amp; admin announcements appear here.</p>
           </div>
         ) : (
-          notifications.map((item) => (
-            <div
-              key={item.id}
-              className="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group flex items-start justify-between gap-3"
-            >
-              <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 text-base shadow-xs">
-                  {item.subjectIcon || '🎓'}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
-                      {item.subjectName || 'Subject'}
-                    </p>
-                    <span className="text-[10px] text-slate-400 flex-shrink-0">
-                      {formatTimeAgo(item.createdAt)}
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {item.unitName || 'Unit'}
-                  </p>
-
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold truncate">
-                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
-                    <span className="truncate">{item.lectureTitle || 'Lecture'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={(e) => handleDeleteOne(e, item.id)}
-                title="Delete notification"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all opacity-80 hover:opacity-100 flex-shrink-0 mt-0.5"
+          notifications.map((item) => {
+            const isAdmin = item.type === 'admin_broadcast'
+            return (
+              <div
+                key={item.id}
+                className={`p-3.5 transition-colors group flex items-start justify-between gap-3 ${
+                  isAdmin
+                    ? 'hover:bg-amber-50 dark:hover:bg-amber-900/10 border-l-2 border-amber-400'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                }`}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  {/* Icon */}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base shadow-xs ${
+                    isAdmin
+                      ? 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 text-amber-600 dark:text-amber-400'
+                      : 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {isAdmin ? '📢' : (item.subjectIcon || '🎓')}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                        {isAdmin ? (item.subject || 'Announcement') : (item.subjectName || 'Subject')}
+                      </p>
+                      <span className="text-[10px] text-slate-400 flex-shrink-0">
+                        {formatTimeAgo(item.createdAt)}
+                      </span>
+                    </div>
+
+                    {isAdmin ? (
+                      <>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-snug line-clamp-2">
+                          {item.message}
+                        </p>
+                        {item.link && (
+                          <a
+                            href={item.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                          >
+                            <BookOpen className="w-3 h-3" /> Open Link
+                          </a>
+                        )}
+                        <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500 font-semibold">
+                          <ShieldCheck className="w-3 h-3" /> Admin Broadcast
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          {item.unitName || 'Unit'}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
+                          <span className="truncate">{item.lectureTitle || 'Lecture'}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={(e) => handleDeleteOne(e, item.id, isAdmin)}
+                  title="Remove notification"
+                  className="p-1.5 rounded-lg transition-all opacity-80 hover:opacity-100 flex-shrink-0 mt-0.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )
+          })
         )}
       </div>
     </motion.div>
   )
 }
+
 
 // ─── Pro User Dropdown Menu ───────────────────────────────────────────────────
 const UserMenu = ({ onClose }) => {
@@ -324,7 +360,7 @@ const Navbar = ({ onMenuClick }) => {
 
         {/* Network Indicator (Responsive) */}
         <div className="w-auto max-w-[140px] hidden sm:block">
-          <NetworkIndicator compact />
+          <NetworkIndicator compact popupDirection="down" />
         </div>
 
         {/* Theme Toggle */}

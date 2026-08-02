@@ -453,6 +453,81 @@ export const subscribeToNotifications = (uid, callback, onError) => {
   }, onError)
 }
 
+/**
+ * Send a broadcast notification from admin to ALL users.
+ * Stores in top-level `adminNotifications` collection.
+ * @param {{ subject: string, message: string, link?: string, sentBy?: string }} payload
+ */
+export const sendAdminBroadcast = async ({ subject, message, link = '', sentBy = 'Admin' }) => {
+  const colRef = collection(db, 'adminNotifications')
+  await addDoc(colRef, {
+    subject: subject || 'Announcement',
+    message: message || '',
+    link:    link    || '',
+    sentBy:  sentBy,
+    type:    'admin_broadcast',
+    createdAt: serverTimestamp(),
+  })
+}
+
+/**
+ * Real-time listener for global admin broadcast notifications.
+ * @returns {Function} unsubscribe
+ */
+export const subscribeToAdminNotifications = (callback, onError) => {
+  const colRef = collection(db, 'adminNotifications')
+  return onSnapshot(colRef, (snap) => {
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    list.sort((a, b) => {
+      const tA = a.createdAt?.seconds || 0
+      const tB = b.createdAt?.seconds || 0
+      return tB - tA
+    })
+    callback(list)
+  }, onError || ((err) => console.warn('[Firestore] adminNotifications error:', err)))
+}
+
+/**
+ * Update an existing admin broadcast notification.
+ * @param {string} notifId
+ * @param {{ subject?: string, message?: string, link?: string }} data
+ */
+export const updateAdminNotification = async (notifId, data) => {
+  if (!notifId) return
+  const ref = doc(db, 'adminNotifications', notifId)
+  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() })
+}
+
+/**
+ * Permanently delete an admin broadcast notification from Firestore.
+ * @param {string} notifId
+ */
+export const deleteAdminNotification = async (notifId) => {
+  if (!notifId) return
+  await deleteDoc(doc(db, 'adminNotifications', notifId))
+}
+
+/**
+ * Dismiss a single admin broadcast notification for a specific user.
+ * Adds the notification ID to `dismissedAdminNotifIds` array on their user doc.
+ */
+export const dismissAdminNotification = async (uid, notifId) => {
+  if (!uid || !notifId) return
+  const userRef = doc(db, 'users', uid)
+  await setDoc(userRef, {
+    dismissedAdminNotifIds: arrayUnion(notifId),
+  }, { merge: true })
+}
+
+/**
+ * Clear all dismissed admin notification IDs for a user (used on "Clear All").
+ */
+export const clearDismissedAdminNotifications = async (uid) => {
+  if (!uid) return
+  const userRef = doc(db, 'users', uid)
+  await updateDoc(userRef, { dismissedAdminNotifIds: [] })
+}
+
 // ═══════════════════════════════════════════════════════════════
 // ACCOUNT DELETION & RECOVERY (7-Day Grace Period)
 // ═══════════════════════════════════════════════════════════════

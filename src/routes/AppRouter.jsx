@@ -24,10 +24,11 @@ const Tasks          = lazy(() => import('@/pages/Tasks'))
 const Profile        = lazy(() => import('@/pages/Profile'))
 
 // Admin pages (wrapped in AdminLayout)
-const AdminLogin      = lazy(() => import('@/pages/admin/AdminLogin'))
-const AdminDashboard  = lazy(() => import('@/pages/admin/AdminDashboard'))
-const AdminUsers      = lazy(() => import('@/pages/admin/AdminUsers'))
-const AdminCurriculum = lazy(() => import('@/pages/admin/AdminCurriculum'))
+const AdminLogin          = lazy(() => import('@/pages/admin/AdminLogin'))
+const AdminDashboard      = lazy(() => import('@/pages/admin/AdminDashboard'))
+const AdminUsers          = lazy(() => import('@/pages/admin/AdminUsers'))
+const AdminCurriculum     = lazy(() => import('@/pages/admin/AdminCurriculum'))
+const AdminNotifications  = lazy(() => import('@/pages/admin/AdminNotifications'))
 
 const PageLoader = () => <LoadingSpinner fullScreen label="Loading page…" />
 
@@ -59,11 +60,12 @@ const AppRouter = () => (
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* ── Admin routes ── */}
-        <Route path="/admin/login"      element={<AdminLogin />} />
-        <Route path="/admin/dashboard"  element={<AdminPage><AdminDashboard /></AdminPage>} />
-        <Route path="/admin/users"      element={<AdminPage><AdminUsers /></AdminPage>} />
-        <Route path="/admin/curriculum" element={<AdminPage><AdminCurriculum /></AdminPage>} />
-        <Route path="/admin"            element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/admin/login"          element={<AdminLogin />} />
+        <Route path="/admin/dashboard"      element={<AdminPage><AdminDashboard /></AdminPage>} />
+        <Route path="/admin/users"          element={<AdminPage><AdminUsers /></AdminPage>} />
+        <Route path="/admin/curriculum"     element={<AdminPage><AdminCurriculum /></AdminPage>} />
+        <Route path="/admin/notifications"  element={<AdminPage><AdminNotifications /></AdminPage>} />
+        <Route path="/admin"                element={<Navigate to="/admin/dashboard" replace />} />
 
         {/* ── Student protected routes ── */}
         <Route path="/dashboard"                   element={<PrivatePage><Dashboard /></PrivatePage>} />
