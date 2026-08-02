@@ -8,7 +8,7 @@ import {
   Megaphone, Send, Link2, X, ChevronDown, ChevronUp,
   Trash2, Pencil, Check, Eye, EyeOff, ArrowLeft,
   Clock, Users, RefreshCw, Plus, AlertCircle, ExternalLink,
-  ShieldCheck, Bell
+  ShieldCheck, Bell, AlertTriangle
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -338,22 +338,112 @@ const EditModal = ({ notif, onClose, onSaved }) => {
   )
 }
 
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+const DeleteConfirmModal = ({ notif, onCancel, onConfirm, deleting }) => {
+  const overlayRef = useRef(null)
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  return (
+    <motion.div
+      ref={overlayRef}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={(e) => { if (e.target === overlayRef.current) onCancel() }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ scale: 0.88, opacity: 0, y: 24 }}
+        animate={{ scale: 1,    opacity: 1, y: 0  }}
+        exit={{    scale: 0.88, opacity: 0, y: 24 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+        className="w-full max-w-md bg-slate-900 border border-red-900/50 rounded-3xl shadow-2xl overflow-hidden"
+      >
+        {/* Red top accent strip */}
+        <div className="h-1 w-full bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+
+        {/* Body */}
+        <div className="p-6 space-y-5">
+          {/* Icon + title */}
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <AlertTriangle className="w-6 h-6 text-red-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-black text-white leading-tight">Delete Broadcast?</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                This will <span className="text-red-400 font-bold">permanently remove</span> the notification
+                from Firestore. Students who haven't seen it yet will lose access immediately.
+              </p>
+            </div>
+          </div>
+
+          {/* Notification preview card */}
+          <div className="rounded-2xl bg-slate-800/60 border border-slate-700/60 p-4 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-base">📢</span>
+              <p className="text-sm font-bold text-white truncate">{notif.subject}</p>
+            </div>
+            {notif.message && (
+              <p className="text-xs text-slate-400 leading-snug line-clamp-2 pl-7">{notif.message}</p>
+            )}
+          </div>
+
+          {/* Warning note */}
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-950/30 border border-red-800/30">
+            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+            <p className="text-[11px] text-red-300 font-medium">This action cannot be undone.</p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={onCancel}
+              disabled={deleting}
+              className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800 transition disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={deleting}
+              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-black transition-all shadow-lg shadow-red-900/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {deleting
+                ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Deleting…</>
+                : <><Trash2 className="w-3.5 h-3.5" /> Yes, Delete It</>
+              }
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ─── Notifications Table ──────────────────────────────────────────────────────
 const NotificationsTable = ({ notifications, loading, onEdit }) => {
-  const [expandedId, setExpandedId] = useState(null)
-  const [deleting,   setDeleting]   = useState(null)
+  const [expandedId,    setExpandedId]    = useState(null)
+  const [deleting,      setDeleting]      = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)   // notif object awaiting confirm
 
-  const handleDelete = async (id) => {
-    if (!confirm('Permanently delete this broadcast? Users who haven\'t seen it will lose access.')) return
-    setDeleting(id)
+  const handleDeleteConfirmed = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
     const tid = toast.loading('Deleting…')
     try {
-      await deleteAdminNotification(id)
+      await deleteAdminNotification(pendingDelete.id)
       toast.success('Notification deleted.', { id: tid })
+      setPendingDelete(null)
     } catch (err) {
       toast.error('Delete failed: ' + err.message, { id: tid })
     } finally {
-      setDeleting(null)
+      setDeleting(false)
     }
   }
 
@@ -379,6 +469,7 @@ const NotificationsTable = ({ notifications, loading, onEdit }) => {
   }
 
   return (
+    <>
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead>
@@ -471,12 +562,12 @@ const NotificationsTable = ({ notifications, loading, onEdit }) => {
 
                     {/* Delete */}
                     <button
-                      onClick={() => handleDelete(n.id)}
-                      disabled={deleting === n.id}
+                      onClick={() => setPendingDelete(n)}
+                      disabled={deleting}
                       title="Delete"
                       className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-900/20 transition-all disabled:opacity-50"
                     >
-                      {deleting === n.id
+                      {deleting
                         ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
@@ -519,6 +610,19 @@ const NotificationsTable = ({ notifications, loading, onEdit }) => {
         </tbody>
       </table>
     </div>
+
+      {/* ── Delete Confirm Modal ── */}
+      <AnimatePresence>
+        {pendingDelete && (
+          <DeleteConfirmModal
+            notif={pendingDelete}
+            deleting={deleting}
+            onCancel={() => setPendingDelete(null)}
+            onConfirm={handleDeleteConfirmed}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 

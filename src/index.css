@@ -121,3 +121,9 @@
   50%  { background-position: 100% 50%; }
   100% { background-position: 0%   50%; }
 }
+
+/* Toast progress bar — drains left-to-right */
+@keyframes toast-shrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}

@@ -1,8 +1,9 @@
 // src/hooks/useNotifications.js
 // Merges per-user lecture-completion notifications with global admin broadcast notifications.
 // Users can dismiss individual admin notifications — dismissed IDs are stored per-user in Firestore.
+// Plays an iPhone-style chime whenever a NEW admin broadcast arrives in real-time.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   subscribeToNotifications,
@@ -13,6 +14,7 @@ import {
   dismissAdminNotification,
   clearDismissedAdminNotifications,
 } from '@/firebase/firestore'
+import { playNotificationSound } from '@/utils/notificationSound'
 
 export default function useNotifications() {
   const { uid } = useAuth()
@@ -20,6 +22,10 @@ export default function useNotifications() {
   const [adminNotifs,  setAdminNotifs]  = useState([])
   const [dismissed,    setDismissed]    = useState([])   // dismissed admin notif IDs for this user
   const [loading,      setLoading]      = useState(true)
+
+  // Track previous admin notif IDs so we can detect truly NEW arrivals
+  const prevAdminIdsRef  = useRef(null)   // null = initial load (don't play on mount)
+  const isFirstLoadRef   = useRef(true)
 
   // ── Per-user notifications (lecture completions) ─────────────
   useEffect(() => {
@@ -51,11 +57,33 @@ export default function useNotifications() {
     return unsub
   }, [uid])
 
-  // ── Global admin broadcast notifications ─────────────────────
+  // ── Global admin broadcast notifications + sound trigger ──────
   useEffect(() => {
     const unsub = subscribeToAdminNotifications(
-      (data) => setAdminNotifs(data),
-      (err)  => console.warn('[useNotifications] admin broadcast:', err.message)
+      (data) => {
+        const incomingIds = data.map(n => n.id)
+
+        if (isFirstLoadRef.current) {
+          // First snapshot — just record the existing IDs, don't play
+          prevAdminIdsRef.current = new Set(incomingIds)
+          isFirstLoadRef.current  = false
+        } else {
+          // Check for any IDs that weren't in the previous snapshot
+          const prev = prevAdminIdsRef.current || new Set()
+          const hasNew = incomingIds.some(id => !prev.has(id))
+
+          if (hasNew) {
+            // 🔔 New broadcast arrived — play iPhone tri-tone chime
+            playNotificationSound()
+          }
+
+          // Update the reference set
+          prevAdminIdsRef.current = new Set(incomingIds)
+        }
+
+        setAdminNotifs(data)
+      },
+      (err) => console.warn('[useNotifications] admin broadcast:', err.message)
     )
     return unsub
   }, [])
@@ -75,7 +103,6 @@ export default function useNotifications() {
     if (!uid) return
     try {
       if (isAdmin) {
-        // Store dismiss in user profile — keeps global notif intact
         await dismissAdminNotification(uid, notificationId)
       } else {
         await deleteNotification(uid, notificationId)
@@ -88,10 +115,7 @@ export default function useNotifications() {
   const handleClearAll = async () => {
     if (!uid) return
     try {
-      // Clear user's own lecture-completion notifications
       await clearAllNotifications(uid)
-      // Clear user's dismissed-admin list so visible admin notifs also disappear
-      // by adding ALL currently visible admin notif IDs to dismissed
       const adminIds = visibleAdminNotifs.map(n => n.id)
       for (const id of adminIds) {
         await dismissAdminNotification(uid, id)
