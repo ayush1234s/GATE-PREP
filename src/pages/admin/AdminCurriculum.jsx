@@ -2,29 +2,40 @@
 // Ultra-Pro Admin Curriculum & YouTube Video Manager — Add/Edit/Delete Subjects, Units, and Lectures.
 // Features Grid vs. List View Mode Toggle (Default: Grid View), video link status badges,
 // pre-populated GATE ECE curriculum, instant Firestore updates, and live client player sync.
+// Animated with Framer Motion staggered reveals and micro-hover cards.
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Plus, Edit2, Trash2, Video, Layers,
-  ChevronDown, ChevronRight, Save, X, ExternalLink,
-  Sparkles, CheckCircle2, PlayCircle, RefreshCw, AlertCircle,
-  Link2, Film, Check, LayoutGrid, List
+  X, CheckCircle2, PlayCircle, AlertCircle,
+  LayoutGrid, List
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
   subscribeToSubjects, getUnits, getLectures,
-  createSubject, updateSubject, deleteSubject,
+  createSubject, updateSubject,
   createUnit, updateUnit, deleteUnit,
   createLecture, updateLecture, deleteLecture
 } from '@/firebase/firestore'
 import { CURRICULUM_DATA } from '@/data/curriculumData'
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+}
+
 export default function AdminCurriculum() {
   const [subjects, setSubjects]           = useState([])
-  const [loading, setLoading]             = useState(true)
   const [activeSubjectId, setActiveSubjectId] = useState(null)
-  const [expandedUnit, setExpandedUnit]   = useState(null)
   const [unitsMap, setUnitsMap]           = useState({})     // { [subjectId]: unitsList }
   const [lecturesMap, setLecturesMap]     = useState({})  // { [`${subjectId}_${unitId}`]: lecturesList }
   const [viewMode, setViewMode]           = useState('grid') // 'grid' | 'list' (default: grid)
@@ -36,7 +47,6 @@ export default function AdminCurriculum() {
 
   // Subscribe to Subjects from Firestore
   useEffect(() => {
-    setLoading(true)
     const unsubscribe = subscribeToSubjects(
       (list) => {
         let finalSubjects = list
@@ -47,7 +57,6 @@ export default function AdminCurriculum() {
         if (finalSubjects.length > 0 && !activeSubjectId) {
           setActiveSubjectId(finalSubjects[0].id)
         }
-        setLoading(false)
       },
       (err) => {
         console.warn('Admin subjects subscribe notice:', err)
@@ -56,11 +65,10 @@ export default function AdminCurriculum() {
         if (!activeSubjectId && fallback.length > 0) {
           setActiveSubjectId(fallback[0].id)
         }
-        setLoading(false)
       }
     )
     return unsubscribe
-  }, [])
+  }, [activeSubjectId])
 
   // Auto-load Units & Lectures when active Subject changes
   useEffect(() => {
@@ -99,46 +107,34 @@ export default function AdminCurriculum() {
     }
   }
 
-  const refreshLectures = async (subId, unitId) => {
-    await loadLecturesForUnit(subId, unitId)
-  }
-
   const refreshUnits = async (subId) => {
     await loadUnitsForSubject(subId)
   }
 
-  // ── Subject Save / Delete ──
+  const refreshLectures = async (subId, unitId) => {
+    await loadLecturesForUnit(subId, unitId)
+  }
+
+  // ── Subject Save ──
   const handleSaveSubject = async (e) => {
     e.preventDefault()
     const form = e.target
     const name = form.name.value.trim()
-    const icon = form.icon.value.trim()
-    const color = form.color.value.trim()
-    const order = form.order.value
+    const description = form.description.value.trim()
+    const icon = form.icon.value.trim() || '📚'
+    const color = form.color.value
 
     const tid = toast.loading('Saving subject to Firestore...')
     try {
       if (subjectModal.data) {
-        await updateSubject(subjectModal.data.id, { name, icon, color, order })
+        await updateSubject(subjectModal.data.id, { name, description, icon, color })
       } else {
-        const newId = await createSubject({ name, icon, color, order })
-        setActiveSubjectId(newId)
+        await createSubject({ name, description, icon, color })
       }
       toast.success('Subject saved successfully!', { id: tid })
       setSubjectModal({ isOpen: false, data: null })
     } catch (err) {
       toast.error('Failed to save subject: ' + err.message, { id: tid })
-    }
-  }
-
-  const handleDeleteSubject = async (subjectId) => {
-    if (!confirm('Are you sure you want to delete this subject?')) return
-    const tid = toast.loading('Deleting subject...')
-    try {
-      await deleteSubject(subjectId)
-      toast.success('Subject deleted!', { id: tid })
-    } catch (err) {
-      toast.error('Failed to delete subject: ' + err.message, { id: tid })
     }
   }
 
@@ -217,10 +213,15 @@ export default function AdminCurriculum() {
   const currentUnits = activeSubjectId ? (unitsMap[activeSubjectId] || []) : []
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-12"
+    >
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
         <div>
           <h1 className="text-xl font-black text-white flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-blue-400" />
@@ -261,285 +262,247 @@ export default function AdminCurriculum() {
             </button>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => setSubjectModal({ isOpen: true, data: null })}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+            className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add Subject</span>
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Subject Selector Tabs */}
+      <motion.div variants={itemVariants} className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        {subjects.map((sub) => (
+          <button
+            key={sub.id}
+            onClick={() => setActiveSubjectId(sub.id)}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 border flex-shrink-0 ${
+              activeSubjectId === sub.id
+                ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/20'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <span className="text-sm">{sub.icon || '📚'}</span>
+            <span>{sub.name}</span>
           </button>
-        </div>
-      </div>
+        ))}
+      </motion.div>
 
-      {/* Horizontal Subject Selection Tabs */}
-      {loading ? (
-        <div className="py-20 text-center text-slate-400">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-400" />
-          <p className="text-xs font-semibold">Loading GATE curriculum from Firestore…</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
+      {/* Main Active Subject Overview */}
+      {activeSubject && (
+        <motion.div variants={itemVariants} className="space-y-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-purple-600/20 border border-purple-500/30 text-white text-3xl flex items-center justify-center flex-shrink-0 shadow-inner">
+                {activeSubject.icon || '📚'}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-black text-white">{activeSubject.name}</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-950 text-purple-300 border border-purple-800/50">
+                    {currentUnits.length} Units
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 max-w-2xl">{activeSubject.description}</p>
+              </div>
+            </div>
 
-          {/* Subject Tab Strip */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {subjects.map(sub => {
-              const isActive = sub.id === activeSubjectId
-              return (
-                <button
-                  key={sub.id}
-                  onClick={() => setActiveSubjectId(sub.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex-shrink-0 border ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-transparent shadow-lg shadow-blue-500/20'
-                      : 'bg-slate-900/80 text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800'
-                  }`}
-                >
-                  <span className="text-base">{sub.icon || '📚'}</span>
-                  <span>{sub.name}</span>
-                </button>
-              )
-            })}
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <button
+                onClick={() => setSubjectModal({ isOpen: true, data: activeSubject })}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Edit Subject</span>
+              </button>
+
+              <button
+                onClick={() => setUnitModal({ isOpen: true, subjectId: activeSubject.id, data: null })}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Unit</span>
+              </button>
+            </div>
           </div>
 
-          {/* Active Subject Details & Units list */}
-          {activeSubject && (
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+          {/* Units Accordion / Cards (GRID or LIST mode) */}
+          {currentUnits.length === 0 ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center space-y-3">
+              <Layers className="w-10 h-10 text-slate-600 mx-auto" />
+              <p className="text-sm font-bold text-slate-300">No units added yet for {activeSubject.name}</p>
+              <button
+                onClick={() => setUnitModal({ isOpen: true, subjectId: activeSubject.id, data: null })}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-md"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add First Unit</span>
+              </button>
+            </div>
+          ) : (
+            <div className={
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 lg:grid-cols-2 gap-5'
+                : 'space-y-4'
+            }>
+              {currentUnits.map((unit) => {
+                const key = `${activeSubject.id}_${unit.id}`
+                const lectures = lecturesMap[key] || []
 
-              {/* Subject Banner Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-2xl shadow-lg">
-                    {activeSubject.icon || '📚'}
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-white">{activeSubject.name}</h2>
-                    <p className="text-xs text-slate-400">
-                      {currentUnits.length} Units • {viewMode === 'grid' ? 'Grid Display' : 'List Display'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setUnitModal({ isOpen: true, subjectId: activeSubject.id, data: null })}
-                    className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                return (
+                  <motion.div
+                    key={unit.id}
+                    whileHover={{ y: -2 }}
+                    className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Add New Unit</span>
-                  </button>
-
-                  <button
-                    onClick={() => setSubjectModal({ isOpen: true, data: activeSubject })}
-                    className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                    title="Edit Subject Name/Icon"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => handleDeleteSubject(activeSubject.id)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
-                    title="Delete Subject"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Units Container (Grid vs List Layout) */}
-              {currentUnits.length === 0 ? (
-                <div className="text-center py-10 space-y-2">
-                  <Layers className="w-8 h-8 text-slate-600 mx-auto" />
-                  <p className="text-xs text-slate-400">No units found for this subject.</p>
-                  <button
-                    onClick={() => setUnitModal({ isOpen: true, subjectId: activeSubject.id, data: null })}
-                    className="text-xs font-bold text-purple-400 hover:underline"
-                  >
-                    + Create First Unit
-                  </button>
-                </div>
-              ) : (
-                <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-4'}>
-                  {currentUnits.map((unit) => {
-                    const unitKey = `${activeSubject.id}_${unit.id}`
-                    const isUnitExpanded = expandedUnit === unitKey
-                    const lecturesList = lecturesMap[unitKey] || []
-
-                    return (
-                      <div key={unit.id} className="bg-slate-950/70 border border-slate-800/90 rounded-2xl overflow-hidden shadow-md flex flex-col">
-
-                        {/* Unit Header Row */}
-                        <div className="p-4 flex items-center justify-between gap-3 bg-slate-900/60">
-                          <button
-                            onClick={() => {
-                              if (expandedUnit === unitKey) setExpandedUnit(null)
-                              else {
-                                setExpandedUnit(unitKey)
-                                refreshLectures(activeSubject.id, unit.id)
-                              }
-                            }}
-                            className="flex items-center gap-3 flex-1 text-left min-w-0"
-                          >
-                            <Layers className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-bold text-sm text-white truncate">{unit.name}</h3>
-                              <p className="text-[11px] text-slate-400">{lecturesList.length} Lectures</p>
-                            </div>
-                          </button>
-
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              onClick={() => setLectureModal({ isOpen: true, subjectId: activeSubject.id, unitId: unit.id, data: null })}
-                              className="px-2.5 py-1.5 rounded-xl bg-blue-950/80 hover:bg-blue-900 text-blue-300 text-xs font-bold border border-blue-800/60 flex items-center gap-1 transition-all"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Add Lecture</span>
-                            </button>
-
-                            <button
-                              onClick={() => setUnitModal({ isOpen: true, subjectId: activeSubject.id, data: unit })}
-                              className="p-1.5 text-slate-400 hover:text-white"
-                              title="Edit Unit Title"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            <button
-                              onClick={() => handleDeleteUnit(activeSubject.id, unit.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-400"
-                              title="Delete Unit"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                if (expandedUnit === unitKey) setExpandedUnit(null)
-                                else {
-                                  setExpandedUnit(unitKey)
-                                  refreshLectures(activeSubject.id, unit.id)
-                                }
-                              }}
-                              className="p-1 text-slate-400 hover:text-white"
-                            >
-                              {isUnitExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                            </button>
-                          </div>
+                    {/* Unit Header */}
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-blue-950 text-blue-300 font-bold flex items-center justify-center text-xs border border-blue-800">
+                          U{unit.order || 1}
                         </div>
+                        <div>
+                          <h3 className="font-extrabold text-sm text-white">{unit.name}</h3>
+                          <p className="text-[10px] text-slate-400">{lectures.length} Video Lectures</p>
+                        </div>
+                      </div>
 
-                        {/* Lectures Sub-List */}
-                        {isUnitExpanded && (
-                          <div className="p-4 bg-slate-950 border-t border-slate-800/80 space-y-2.5 flex-1">
-                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                              <span>Lectures & YouTube Status</span>
-                              <span>{lecturesList.length} Lectures</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setLectureModal({ isOpen: true, subjectId: activeSubject.id, unitId: unit.id, data: null })}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-white transition-colors"
+                          title="Add Lecture"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setUnitModal({ isOpen: true, subjectId: activeSubject.id, data: unit })}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                          title="Edit Unit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUnit(activeSubject.id, unit.id)}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-red-400 hover:text-white transition-colors"
+                          title="Delete Unit"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lectures List */}
+                    <div className="space-y-2.5">
+                      {lectures.length === 0 ? (
+                        <p className="text-xs text-slate-500 py-3 text-center italic">No lectures in this unit yet.</p>
+                      ) : (
+                        lectures.map((lec) => (
+                          <div
+                            key={lec.id}
+                            className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 group hover:border-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-xl bg-purple-950/60 text-purple-400 flex items-center justify-center flex-shrink-0 border border-purple-900/40">
+                                <PlayCircle className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-white truncate leading-snug">{lec.title}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {lec.youtubeUrl ? (
+                                    <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-400" /> YouTube Linked
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                                      <AlertCircle className="w-3 h-3 text-amber-400" /> Default Video
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
-                            {lecturesList.length === 0 ? (
-                              <p className="text-xs text-slate-500 italic py-2">No lectures created in this unit yet.</p>
-                            ) : (
-                              lecturesList.map((lec) => {
-                                const hasUrl = !!lec.youtubeUrl && lec.youtubeUrl.trim() !== ''
-
-                                return (
-                                  <div
-                                    key={lec.id}
-                                    className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800/90 flex flex-col justify-between gap-2.5 text-xs"
-                                  >
-                                    <div className="flex items-start gap-3 min-w-0">
-                                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                                        hasUrl ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50' : 'bg-amber-950 text-amber-400 border border-amber-800/50'
-                                      }`}>
-                                        {hasUrl ? <PlayCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                      </div>
-
-                                      <div className="min-w-0 flex-1">
-                                        <p className="font-bold text-white text-xs truncate">{lec.title}</p>
-
-                                        {/* Status & YouTube URL display */}
-                                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                          {hasUrl ? (
-                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-950 text-emerald-400 border border-emerald-800/50 flex items-center gap-1">
-                                              <Check className="w-2.5 h-2.5" /> Connected
-                                            </span>
-                                          ) : (
-                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-950 text-amber-400 border border-amber-800/50 flex items-center gap-1">
-                                              <AlertCircle className="w-2.5 h-2.5" /> Missing URL
-                                            </span>
-                                          )}
-
-                                          <span className="text-[10px] font-mono text-slate-400 truncate max-w-xs">
-                                            {lec.youtubeUrl || 'No Link'}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/50">
-                                      <button
-                                        onClick={() => setLectureModal({ isOpen: true, subjectId: activeSubject.id, unitId: unit.id, data: lec })}
-                                        className="px-2.5 py-1 rounded-xl bg-purple-950/80 hover:bg-purple-900 text-purple-200 text-[11px] font-bold border border-purple-800/60 flex items-center gap-1 transition-all"
-                                      >
-                                        <Video className="w-3 h-3 text-red-500" />
-                                        <span>{hasUrl ? 'Edit Video Link' : 'Add Link'}</span>
-                                      </button>
-
-                                      <button
-                                        onClick={() => handleDeleteLecture(activeSubject.id, unit.id, lec.id)}
-                                        className="p-1 rounded-xl text-slate-400 hover:text-red-400 hover:bg-slate-800"
-                                        title="Delete Lecture"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                )
-                              })
-                            )}
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => setLectureModal({ isOpen: true, subjectId: activeSubject.id, unitId: unit.id, data: lec })}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                title="Edit Lecture & Video URL"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteLecture(activeSubject.id, unit.id, lec.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                                title="Delete Lecture"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
             </div>
           )}
-
-        </div>
+        </motion.div>
       )}
 
-      {/* ── SUBJECT MODAL ── */}
+      {/* ── Subject Modal ── */}
       <AnimatePresence>
         {subjectModal.isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full text-left space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-white text-sm">{subjectModal.data ? 'Edit Subject' : 'Add New Subject'}</h3>
-                <button onClick={() => setSubjectModal({ isOpen: false, data: null })} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
-              </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1,   y: 0  }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              className="bg-slate-900 rounded-3xl border border-purple-900/60 shadow-2xl max-w-md w-full p-6 text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-purple-600" />
+              <button onClick={() => setSubjectModal({ isOpen: false, data: null })} className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
 
-              <form onSubmit={handleSaveSubject} className="space-y-3 text-xs">
+              <h3 className="font-extrabold text-base text-white mb-4">
+                {subjectModal.data ? 'Edit Subject' : 'Add New Subject'}
+              </h3>
+
+              <form onSubmit={handleSaveSubject} className="space-y-4">
                 <div>
-                  <label className="block text-slate-400 mb-1">Subject Name</label>
-                  <input name="name" defaultValue={subjectModal.data?.name || ''} required className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. Engineering Mathematics" />
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Subject Name</label>
+                  <input name="name" defaultValue={subjectModal.data?.name || ''} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" required />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Subject Icon (Emoji)</label>
-                  <input name="icon" defaultValue={subjectModal.data?.icon || '📚'} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="📐" />
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Description</label>
+                  <textarea name="description" rows={3} defaultValue={subjectModal.data?.description || ''} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" />
                 </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Gradient / Color Class</label>
-                  <input name="color" defaultValue={subjectModal.data?.color || 'from-indigo-500 to-purple-600'} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Icon Emoji</label>
+                    <input name="icon" defaultValue={subjectModal.data?.icon || '📚'} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Color Theme</label>
+                    <select name="color" defaultValue={subjectModal.data?.color || 'indigo'} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white">
+                      <option value="indigo">Indigo</option>
+                      <option value="blue">Blue</option>
+                      <option value="green">Green</option>
+                      <option value="amber">Amber</option>
+                      <option value="purple">Purple</option>
+                      <option value="red">Red</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Display Order</label>
-                  <input name="order" type="number" defaultValue={subjectModal.data?.order || 1} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" />
-                </div>
-                <div className="pt-2 flex justify-end gap-2">
-                  <button type="button" onClick={() => setSubjectModal({ isOpen: false, data: null })} className="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-slate-800">Cancel</button>
-                  <button type="submit" className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-md">Save Subject</button>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button type="button" onClick={() => setSubjectModal({ isOpen: false, data: null })} className="px-4 py-2 rounded-xl text-xs text-slate-400">Cancel</button>
+                  <button type="submit" className="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold">Save Subject</button>
                 </div>
               </form>
             </motion.div>
@@ -547,28 +510,38 @@ export default function AdminCurriculum() {
         )}
       </AnimatePresence>
 
-      {/* ── UNIT MODAL ── */}
+      {/* ── Unit Modal ── */}
       <AnimatePresence>
         {unitModal.isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full text-left space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="font-bold text-white text-sm">{unitModal.data ? 'Edit Unit' : 'Add New Unit'}</h3>
-                <button onClick={() => setUnitModal({ isOpen: false, subjectId: null, data: null })} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
-              </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1,   y: 0  }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              className="bg-slate-900 rounded-3xl border border-blue-900/60 shadow-2xl max-w-md w-full p-6 text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-blue-600" />
+              <button onClick={() => setUnitModal({ isOpen: false, subjectId: null, data: null })} className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
 
-              <form onSubmit={handleSaveUnit} className="space-y-3 text-xs">
+              <h3 className="font-extrabold text-base text-white mb-4">
+                {unitModal.data ? 'Edit Unit' : 'Add New Unit'}
+              </h3>
+
+              <form onSubmit={handleSaveUnit} className="space-y-4">
                 <div>
-                  <label className="block text-slate-400 mb-1">Unit Title</label>
-                  <input name="name" defaultValue={unitModal.data?.name || ''} required className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. Unit 1: Linear Algebra" />
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Title</label>
+                  <input name="name" defaultValue={unitModal.data?.name || ''} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" required />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Display Order</label>
-                  <input name="order" type="number" defaultValue={unitModal.data?.order || 1} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" />
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Order Number</label>
+                  <input name="order" type="number" defaultValue={unitModal.data?.order || 1} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" />
                 </div>
-                <div className="pt-2 flex justify-end gap-2">
-                  <button type="button" onClick={() => setUnitModal({ isOpen: false, subjectId: null, data: null })} className="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-slate-800">Cancel</button>
-                  <button type="submit" className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white shadow-md">Save Unit</button>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button type="button" onClick={() => setUnitModal({ isOpen: false, subjectId: null, data: null })} className="px-4 py-2 rounded-xl text-xs text-slate-400">Cancel</button>
+                  <button type="submit" className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">Save Unit</button>
                 </div>
               </form>
             </motion.div>
@@ -576,39 +549,54 @@ export default function AdminCurriculum() {
         )}
       </AnimatePresence>
 
-      {/* ── LECTURE & YOUTUBE LINK MODAL ── */}
+      {/* ── Lecture Modal (YouTube URL Editor) ── */}
       <AnimatePresence>
         {lectureModal.isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full text-left space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="font-bold text-white text-sm">{lectureModal.data ? 'Edit Lecture & YouTube Video Link' : 'Add New Lecture'}</h3>
-                  <p className="text-[11px] text-emerald-400">YouTube URLs sync live to student video player modal</p>
-                </div>
-                <button onClick={() => setLectureModal({ isOpen: false, subjectId: null, unitId: null, data: null })} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
-              </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1,   y: 0  }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              className="bg-slate-900 rounded-3xl border border-purple-900/60 shadow-2xl max-w-md w-full p-6 text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-600 to-pink-600" />
+              <button onClick={() => setLectureModal({ isOpen: false, subjectId: null, unitId: null, data: null })} className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
 
-              <form onSubmit={handleSaveLecture} className="space-y-3 text-xs">
+              <h3 className="font-extrabold text-base text-white mb-4">
+                {lectureModal.data ? 'Edit Lecture & YouTube Video Link' : 'Add New Lecture'}
+              </h3>
+
+              <form onSubmit={handleSaveLecture} className="space-y-4">
                 <div>
-                  <label className="block text-slate-400 mb-1">Lecture Title</label>
-                  <input name="title" defaultValue={lectureModal.data?.title || ''} required className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. Matrices & Eigenvalues" />
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Lecture Title</label>
+                  <input name="title" defaultValue={lectureModal.data?.title || ''} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" required />
                 </div>
+
                 <div>
-                  <label className="block text-slate-400 mb-1">YouTube Video Link (URL)</label>
-                  <div className="relative">
-                    <input name="youtubeUrl" defaultValue={lectureModal.data?.youtubeUrl || ''} className="w-full pl-3 pr-8 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:ring-2 focus:ring-purple-500" placeholder="https://www.youtube.com/watch?v=..." />
-                    <Video className="w-4 h-4 text-red-500 absolute right-3 top-1/2 -translate-y-1/2" />
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Paste any standard YouTube video or Short link (e.g. https://www.youtube.com/watch?v=...).</p>
+                  <label className="block text-xs font-bold text-purple-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Video className="w-3.5 h-3.5 text-red-500" /> YouTube Video URL / Video ID
+                  </label>
+                  <input
+                    name="youtubeUrl"
+                    defaultValue={lectureModal.data?.youtubeUrl || ''}
+                    placeholder="https://www.youtube.com/watch?v=VIDEO_ID or VIDEO_ID"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white font-mono text-purple-300"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    💡 Paste full YouTube video URL or ID. This video will play live when students click "Watch Video".
+                  </p>
                 </div>
+
                 <div>
-                  <label className="block text-slate-400 mb-1">Order Index</label>
-                  <input name="order" type="number" defaultValue={lectureModal.data?.order || 1} className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white" />
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Order Number</label>
+                  <input name="order" type="number" defaultValue={lectureModal.data?.order || 1} className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white" />
                 </div>
-                <div className="pt-2 flex justify-end gap-2">
-                  <button type="button" onClick={() => setLectureModal({ isOpen: false, subjectId: null, unitId: null, data: null })} className="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-slate-800">Cancel</button>
-                  <button type="submit" className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white shadow-md">Save & Sync Live</button>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button type="button" onClick={() => setLectureModal({ isOpen: false, subjectId: null, unitId: null, data: null })} className="px-4 py-2 rounded-xl text-xs text-slate-400">Cancel</button>
+                  <button type="submit" className="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold">Save Lecture</button>
                 </div>
               </form>
             </motion.div>
@@ -616,6 +604,6 @@ export default function AdminCurriculum() {
         )}
       </AnimatePresence>
 
-    </div>
+    </motion.div>
   )
 }

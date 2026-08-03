@@ -18,7 +18,6 @@ import {
   getCountFromServer,
   arrayUnion,
   arrayRemove,
-  increment,
 } from 'firebase/firestore'
 import { db } from './config'
 
@@ -60,22 +59,26 @@ export const getUserProfile = async (uid) => {
   return null
 }
 
-/**
- * Create user profile on first signup or admin creation.
- */
-export const createUserProfile = async (uid, { name, email, photoURL }) => {
+export const createUserProfile = async (userOrUid, data = {}) => {
+  const uid = typeof userOrUid === 'object' && userOrUid !== null ? userOrUid.uid : userOrUid
+  if (!uid || typeof uid !== 'string' || uid === '[object Object]') return
+
   const ref = doc(db, 'users', uid)
   const studentId = generateStudentId(uid)
+  const { name, email, photoURL, role } = data || {}
+
   await setDoc(ref, {
-    name,
-    email,
+    name:              name || 'Student Aspirant',
+    email:             email || '',
     studentId,
-    photoURL: photoURL || null,
-    createdAt:          serverTimestamp(),
-    completedLectures:  [],
-    totalCompleted:     0,
-    totalLectures:      0,
-    progressPercent:    0,
+    photoURL:          photoURL || null,
+    role:              role || 'student',
+    disabled:          false,
+    createdAt:         serverTimestamp(),
+    completedLectures: [],
+    totalCompleted:    0,
+    totalLectures:     0,
+    progressPercent:   0,
   }, { merge: true })
 }
 
@@ -234,7 +237,9 @@ export const subscribeToSubjects = (callback, onError) => {
  */
 export const seedDefaultSubjects = async (defaultSubjects = []) => {
   for (const subject of defaultSubjects) {
-    const { id, unitCount, lectureCount, ...data } = subject
+    const { id, ...data } = subject
+    delete data.unitCount
+    delete data.lectureCount
     const ref = doc(db, 'subjects', id)
     await setDoc(ref, {
       ...data,
@@ -584,7 +589,9 @@ export const purgeDeletedAccount = async (uid) => {
  */
 export const getAllUsersProfiles = async () => {
   const snap = await getDocs(collection(db, 'users'))
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  return snap.docs
+    .filter(d => d.id !== '[object Object]' && d.id.trim() !== '')
+    .map(d => ({ id: d.id, ...d.data() }))
 }
 
 /**
@@ -592,7 +599,9 @@ export const getAllUsersProfiles = async () => {
  */
 export const subscribeToAllUsers = (callback, onError) => {
   return onSnapshot(collection(db, 'users'), (snap) => {
-    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const list = snap.docs
+      .filter(d => d.id !== '[object Object]' && d.id.trim() !== '')
+      .map(d => ({ id: d.id, ...d.data() }))
     callback(list)
   }, onError)
 }

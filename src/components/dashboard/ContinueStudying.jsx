@@ -4,10 +4,10 @@
 
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
-import { PlayCircle, ArrowRight, BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
+import { PlayCircle, ArrowRight, Sparkles } from 'lucide-react'
 
 // ─── Single Lecture Card ──────────────────────────────────────────────────────
-export const LectureCard = ({ id, subjectId, subjectName, subjectIcon, unitId, unitName, title, order }) => {
+export const LectureCard = ({ subjectId, subjectName, subjectIcon, unitId, unitName, title, order }) => {
   const navigate = useNavigate()
 
   return (
@@ -67,7 +67,8 @@ const ContinueStudying = ({ lectures = [] }) => {
         <div>
           <h2 className="font-extrabold text-lg text-slate-800 dark:text-white flex items-center gap-2">
             <PlayCircle className="w-5 h-5 text-primary-600" />
-            Continue Studying
+            <span>Continue Studying</span>
+            <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Pick up right where you left off in your GATE ECE prep
@@ -98,28 +99,15 @@ const ContinueStudying = ({ lectures = [] }) => {
           ))}
         </div>
       ) : (
-        // Completed All Syllabus Banner
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-10 px-6 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800/40 text-center"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mb-3 shadow-md">
-            <Sparkles className="w-7 h-7" />
+        <div className="p-8 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-slate-950 mx-auto flex items-center justify-center font-black text-xl shadow-lg">
+            🎉
           </div>
-          <h3 className="font-extrabold text-lg text-emerald-900 dark:text-emerald-300 mb-1">
-            🎉 All Lectures Completed!
-          </h3>
-          <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 mb-4 max-w-sm leading-relaxed">
-            You've completed every lecture in your syllabus! Review any subject or attempt practice questions anytime.
+          <h3 className="text-lg font-black text-slate-800 dark:text-white">All Syllabus Lectures Completed!</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-300 max-w-md mx-auto">
+            Amazing dedication! You have finished all available lectures. Keep revising PYQs and mock tests for GATE ECE.
           </p>
-          <Link
-            to="/subjects"
-            className="px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md"
-          >
-            Review Subjects
-          </Link>
-        </motion.div>
+        </div>
       )}
     </div>
   )

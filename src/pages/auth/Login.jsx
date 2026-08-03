@@ -1,12 +1,15 @@
 // src/pages/auth/Login.jsx
 // Login page with email/password, Google OAuth, "Remember me" toggle, and forgot-password link.
+// Features a dynamic entrance animation: Student scholar unlocks his study portal with glowing keys,
+// signal waveforms, and light rays, revealing the login form on the right. Also includes Admin Portal quick link.
 
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, LogIn, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, LogIn, Loader2, Sparkles, Shield } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AuthLayout from '@/layouts/AuthLayout'
+import LoginPortalAnimation from '@/components/auth/LoginPortalAnimation'
 import { logInWithEmail, signInWithGoogle, logOut } from '@/firebase/auth'
 import { getUserProfile } from '@/firebase/firestore'
 import { useAuth } from '@/contexts/AuthContext'
@@ -44,7 +47,6 @@ const friendlyError = (code) => {
   return map[code] || 'Login failed. Please check your credentials.'
 }
 
-// Sub-component defined OUTSIDE to preserve DOM focus across re-renders
 const InputField = ({ id, name, type, value, onChange, placeholder, icon: Icon, error, extra }) => (
   <div className="space-y-1">
     <div className="relative">
@@ -91,6 +93,7 @@ const Login = () => {
   const [loading,  setLoading]            = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errors,   setErrors]             = useState({})
+  const [replayKey, setReplayKey]         = useState(0)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -114,13 +117,15 @@ const Login = () => {
     try {
       const credential = await logInWithEmail(formData.email, formData.password, remember)
       const user = credential.user
-      const profile = await getUserProfile(user.uid)
+      let profile = await getUserProfile(user.uid)
 
       if (!profile) {
-        await logOut()
-        toast.error('This account has been deleted by the administrator.', { duration: 6000 })
-        setLoading(false)
-        return
+        await createUserProfile(user.uid, {
+          name: user.displayName || user.email?.split('@')[0] || 'Student',
+          email: user.email,
+          photoURL: user.photoURL || null,
+        })
+        profile = await getUserProfile(user.uid)
       }
 
       if (profile.disabled) {
@@ -148,13 +153,15 @@ const Login = () => {
     try {
       const result = await signInWithGoogle()
       const user = result.user
-      const profile = await getUserProfile(user.uid)
+      let profile = await getUserProfile(user.uid)
 
       if (!profile) {
-        await logOut()
-        toast.error('This account has been deleted by the administrator.', { duration: 6000 })
-        setGoogleLoading(false)
-        return
+        await createUserProfile(user.uid, {
+          name: user.displayName || user.email?.split('@')[0] || 'Student',
+          email: user.email,
+          photoURL: user.photoURL || null,
+        })
+        profile = await getUserProfile(user.uid)
       }
 
       if (profile.disabled) {
@@ -180,154 +187,191 @@ const Login = () => {
   }
 
   return (
-    <AuthLayout>
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">
-          Welcome back 👋
-        </h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
-          Sign in to continue your GATE preparation.
-        </p>
-      </div>
-
-      {/* Google Sign In Button */}
-      <motion.button
-        type="button"
-        onClick={handleGoogleSignIn}
-        disabled={googleLoading || loading}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.98 }}
-        className="
-          w-full flex items-center justify-center gap-3
-          py-3 px-4 rounded-xl font-semibold text-sm
-          bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200
-          border border-slate-200 dark:border-slate-700
-          hover:bg-slate-50 dark:hover:bg-slate-750
-          transition-all shadow-sm mb-5 disabled:opacity-60
-        "
+    <AuthLayout
+      leftContent={
+        <LoginPortalAnimation
+          key={replayKey}
+          onReplay={() => setReplayKey(k => k + 1)}
+        />
+      }
+    >
+      {/* Synchronized Form Reveal Animation */}
+      <motion.div
+        key={replayKey}
+        initial={{ opacity: 0, scale: 0.94, x: 25 }}
+        animate={{ opacity: 1, scale: 1, x: 0 }}
+        transition={{ duration: 0.7, delay: 0.5, ease: 'easeOut' }}
       >
-        {googleLoading ? (
-          <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-        ) : (
-          <GoogleIcon />
-        )}
-        <span>Continue with Google</span>
-      </motion.button>
-
-      {/* Divider */}
-      <div className="relative flex items-center justify-center mb-5">
-        <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-        <span className="bg-white dark:bg-card-dark px-3 text-xs text-slate-400 font-medium uppercase tracking-wider absolute">
-          or sign in with email
-        </span>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        {/* Email */}
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
-            Email
-          </label>
-          <InputField
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="you@example.com"
-            icon={Mail}
-            error={errors.email}
-          />
+        {/* Mobile Header Banner */}
+        <div className="lg:hidden mb-4 p-3 rounded-2xl bg-gradient-to-r from-emerald-400/20 via-primary-500/20 to-indigo-500/20 border border-emerald-500/30 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-400 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
+            🔐
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-slate-800 dark:text-white">Unlocking Your Study Portal</h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Enter your login credentials to jump right back in.</p>
+          </div>
         </div>
 
-        {/* Password */}
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
-            Password
-          </label>
-          <InputField
-            id="password"
-            name="password"
-            type={showPwd ? 'text' : 'password'}
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Enter your password"
-            icon={Lock}
-            error={errors.password}
-            extra={
-              <button
-                type="button"
-                onClick={() => setShowPwd(p => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                tabIndex={-1}
-              >
-                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            }
-          />
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-extrabold text-slate-800 dark:text-white mb-1 flex items-center gap-2">
+            <span>Welcome back</span>
+            <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
+            Sign in to continue your GATE ECE preparation.
+          </p>
         </div>
 
-        {/* Remember + Forgot */}
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              id="remember"
-              type="checkbox"
-              checked={remember}
-              onChange={e => setRemember(e.target.checked)}
-              className="w-4 h-4 rounded accent-primary-600"
-            />
-            <span className="text-sm text-slate-600 dark:text-slate-400">Remember me</span>
-          </label>
-          <Link
-            to="/forgot-password"
-            className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
-          >
-            Forgot password?
-          </Link>
-        </div>
-
-        {/* Submit */}
+        {/* Google Sign In Button */}
         <motion.button
-          type="submit"
-          disabled={loading || googleLoading}
-          whileHover={{ scale: loading ? 1 : 1.01 }}
-          whileTap={{ scale: loading ? 1 : 0.98 }}
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || loading}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
           className="
-            w-full flex items-center justify-center gap-2
-            py-3 px-6 rounded-xl font-semibold text-sm
-            bg-primary-600 hover:bg-primary-700 text-white
-            transition-colors disabled:opacity-60 disabled:cursor-not-allowed
-            shadow-md hover:shadow-primary-500/40
+            w-full flex items-center justify-center gap-3
+            py-3 px-4 rounded-xl font-semibold text-sm
+            bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200
+            border border-slate-200 dark:border-slate-700
+            hover:bg-slate-50 dark:hover:bg-slate-750
+            transition-all shadow-sm mb-5 disabled:opacity-60
           "
         >
-          {loading
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</>
-            : <><LogIn className="w-4 h-4" /> Sign In</>
-          }
+          {googleLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+          ) : (
+            <GoogleIcon />
+          )}
+          <span>Continue with Google</span>
         </motion.button>
-      </form>
 
-      {/* Footer */}
-      <div className="mt-6 text-center space-y-3">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        {/* Divider */}
+        <div className="relative flex items-center justify-center mb-5">
+          <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+          <span className="bg-white dark:bg-card-dark px-3 text-xs text-slate-400 font-medium uppercase tracking-wider absolute">
+            or sign in with email
+          </span>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {/* Email */}
+          <div className="space-y-1">
+            <label htmlFor="email" className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+              Email Address
+            </label>
+            <InputField
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              icon={Mail}
+              error={errors.email}
+            />
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                Password
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <InputField
+              id="password"
+              name="password"
+              type={showPwd ? 'text' : 'password'}
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              icon={Lock}
+              error={errors.password}
+              extra={
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(p => !p)}
+                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+            />
+          </div>
+
+          {/* Remember me */}
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={e => setRemember(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500/30"
+              />
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                Remember me for 30 days
+              </span>
+            </label>
+          </div>
+
+          {/* Submit */}
+          <motion.button
+            type="submit"
+            disabled={loading || googleLoading}
+            whileHover={{ scale: loading ? 1 : 1.01 }}
+            whileTap={{ scale: loading ? 1 : 0.98 }}
+            className="
+              w-full flex items-center justify-center gap-2
+              py-3 px-6 rounded-xl font-semibold text-sm
+              bg-primary-600 hover:bg-primary-700 text-white
+              shadow-lg shadow-primary-600/30 transition-all
+              disabled:opacity-60 disabled:cursor-not-allowed mt-2
+            "
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                <span>Sign In to Dashboard</span>
+              </>
+            )}
+          </motion.button>
+        </form>
+
+        {/* Footer Links */}
+        <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-6">
           Don't have an account?{' '}
-          <Link to="/signup" className="text-primary-600 font-semibold hover:underline">
-            Create one free
+          <Link
+            to="/signup"
+            className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            Sign up now
           </Link>
         </p>
 
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        {/* Admin Portal Entry Badge */}
+        <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
           <Link
             to="/admin/login"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-600 dark:text-slate-300 transition-all border border-slate-200 dark:border-slate-700/60 shadow-xs"
           >
-            <span>🛡️ Administrator Portal Login</span>
+            <Shield className="w-3.5 h-3.5 text-purple-500" />
+            <span>Administrator Portal Login →</span>
           </Link>
         </div>
-      </div>
+      </motion.div>
     </AuthLayout>
   )
 }

@@ -38,14 +38,18 @@ export const AuthProvider = ({ children }) => {
         unsubscribeProfile = subscribeToUserProfile(
           firebaseUser.uid,
           async (profile) => {
-            // Case 1: Account profile document does NOT exist (Deleted by Admin)
+            // Case 1: Account profile document does NOT exist (Auto-repair in Firestore)
             if (!profile) {
-              console.log('[Auth] User account document missing/deleted by Admin:', firebaseUser.email)
-              await logOut()
-              setCurrentUser(null)
-              setUserProfile(null)
-              toast.error('Your account has been deleted by the administrator.')
-              setLoading(false)
+              console.log('[Auth] User account document missing in Firestore. Auto-repairing for:', firebaseUser.email)
+              try {
+                await createUserProfile(firebaseUser.uid, {
+                  name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Student',
+                  email: firebaseUser.email,
+                  photoURL: firebaseUser.photoURL || null,
+                })
+              } catch (err) {
+                console.error('[Auth] Auto-repair profile failed:', err)
+              }
               return
             }
 
