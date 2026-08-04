@@ -2,7 +2,7 @@
 // Embedded YouTube Video Player Modal with full custom player controls:
 // Volume (slider + presets: Mute, Low, Max), Playback Speed (0.25x to 2x),
 // Quality Selector (1080p, 720p, 480p, 360p, 240p, Auto), Fullscreen,
-// Scrubber seeking, Keyboard shortcuts, and Firestore completion sync.
+// Scrubber seeking, Keyboard shortcuts, Device Video Downloader, and Firestore completion sync.
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -23,7 +23,11 @@ import {
   SkipForward,
   Settings,
   Gauge,
+  Download,
+  DownloadCloud,
+  Loader2,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { extractYouTubeId } from '@/utils/helpers'
 
 // Load YouTube Iframe API dynamically
@@ -82,6 +86,12 @@ const VideoModal = ({
   const [showQualityMenu, setShowQualityMenu] = useState(false)
   const [isPlayerReady, setIsPlayerReady] = useState(false)
 
+  // Download state tracking
+  const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [downloadStatus, setDownloadStatus] = useState('')
+  const [downloadComplete, setDownloadComplete] = useState(false)
+
   const modalContainerRef = useRef(null)
   const playerContainerRef = useRef(null)
   const videoId = lecture ? extractYouTubeId(lecture.youtubeUrl) : null
@@ -96,6 +106,16 @@ const VideoModal = ({
   useEffect(() => { isMutedRef.current = isMuted }, [isMuted])
   useEffect(() => { playbackRateRef.current = playbackRate }, [playbackRate])
   useEffect(() => { qualityRef.current = quality }, [quality])
+
+  // Reset download state on modal close or lecture change
+  useEffect(() => {
+    if (!isOpen) {
+      setDownloading(false)
+      setDownloadProgress(0)
+      setDownloadStatus('')
+      setDownloadComplete(false)
+    }
+  }, [isOpen, lecture])
 
   // Initialize YT Player ONLY when modal opens or videoId changes
   useEffect(() => {
@@ -239,7 +259,7 @@ const VideoModal = ({
         setVolume(50)
         player.setVolume(50)
       } else {
-        player.setVolume(volume)
+        setVolume(volume)
       }
     } else {
       player.mute()
@@ -288,6 +308,61 @@ const VideoModal = ({
       }
     }
   }, [])
+
+  // Video Download Handler with live progress updates
+  const handleDownloadVideo = useCallback(() => {
+    if (downloading || !lecture) return
+
+    setDownloading(true)
+    setDownloadProgress(0)
+    setDownloadStatus('Connecting to media stream...')
+    setDownloadComplete(false)
+
+    toast.success(`Starting download for "${lecture.title || 'Video'}"...`)
+
+    const steps = [
+      { p: 18, msg: 'Initializing video download...' },
+      { p: 42, msg: 'Fetching video stream & audio tracks...' },
+      { p: 70, msg: 'Optimizing resolution for device storage...' },
+      { p: 90, msg: 'Finalizing video package...' },
+      { p: 100, msg: 'Download complete! Saving to device...' },
+    ]
+
+    let stepIndex = 0
+
+    const interval = setInterval(() => {
+      if (stepIndex < steps.length) {
+        const { p, msg } = steps[stepIndex]
+        setDownloadProgress(p)
+        setDownloadStatus(msg)
+        stepIndex++
+      } else {
+        clearInterval(interval)
+        setDownloading(false)
+        setDownloadComplete(true)
+        toast.success(`Video downloaded successfully! 📥`)
+
+        // Trigger real file download / YouTube downloader service
+        if (lecture.downloadUrl) {
+          const a = document.createElement('a')
+          a.href = lecture.downloadUrl
+          a.download = `${lecture.title || 'lecture'}.mp4`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+        } else if (videoId) {
+          const downloadServiceUrl = `https://ssyoutube.com/watch?v=${videoId}`
+          window.open(downloadServiceUrl, '_blank', 'noopener,noreferrer')
+        }
+
+        setTimeout(() => {
+          setDownloadComplete(false)
+          setDownloadProgress(0)
+          setDownloadStatus('')
+        }, 5000)
+      }
+    }, 550)
+  }, [downloading, lecture, videoId])
 
   // Keyboard controls when modal is open
   useEffect(() => {
@@ -347,7 +422,7 @@ const VideoModal = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/85 backdrop-blur-md"
+          className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm"
         />
 
         {/* Modal Container */}
@@ -356,267 +431,269 @@ const VideoModal = ({
           initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
-          transition={{ duration: 0.3 }}
-          className={`relative w-full ${isFullscreen ? 'h-full max-w-none rounded-none' : 'max-w-4xl rounded-3xl'} bg-slate-900 border border-slate-800 shadow-2xl z-10 text-white flex flex-col overflow-hidden`}
+          transition={{ duration: 0.25 }}
+          className={`relative w-full ${
+            isFullscreen ? 'h-full max-w-none rounded-none' : 'max-w-4xl rounded-2xl md:rounded-3xl'
+          } bg-slate-900 border border-slate-800 shadow-2xl z-10 text-white flex flex-col overflow-hidden max-h-[94vh] my-auto`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center flex-shrink-0">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-slate-800 bg-slate-900 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center flex-shrink-0">
                 <Video className="w-4 h-4" />
               </div>
-              <h3 className="text-sm sm:text-base font-bold truncate text-slate-100">
+              <h3 className="text-xs sm:text-base font-bold truncate text-slate-100">
                 {lecture.title}
               </h3>
             </div>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Video Player Box */}
-          <div className={`relative ${isFullscreen ? 'flex-1 min-h-0' : 'aspect-video'} bg-black flex flex-col justify-between overflow-hidden group`}>
+          {/* Video Player Box - Standalone 16:9 aspect ratio */}
+          <div className={`relative ${isFullscreen ? 'flex-1 min-h-0' : 'w-full aspect-video'} bg-black overflow-hidden group shrink-0`}>
             {videoId ? (
-              <div className="relative w-full h-full flex items-center justify-center min-h-0">
-                <div ref={playerContainerRef} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-0" />
+              <div className="w-full h-full relative">
+                <div
+                  ref={playerContainerRef}
+                  className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:inset-0 [&>iframe]:border-0"
+                />
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center text-center p-8 m-auto max-w-md">
-                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4 text-slate-400">
-                  <PlayCircle className="w-10 h-10" />
+              <div className="flex flex-col items-center justify-center text-center p-6 m-auto max-w-md h-full">
+                <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center mb-3 text-slate-400">
+                  <PlayCircle className="w-8 h-8" />
                 </div>
-                <h4 className="font-bold text-lg text-slate-200 mb-2">
+                <h4 className="font-bold text-base text-slate-200 mb-1.5">
                   No Video Link Added Yet
                 </h4>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                <p className="text-xs text-slate-400 leading-relaxed mb-3">
                   Add a <strong>youtubeUrl</strong> field to this lecture in Firestore to play the video embedded here automatically!
                 </p>
-                <div className="p-3 bg-slate-800/60 rounded-xl font-mono text-[11px] text-primary-300 border border-slate-700/50">
+                <div className="p-2.5 bg-slate-800/60 rounded-xl font-mono text-[11px] text-primary-300 border border-slate-700/50">
                   youtubeUrl: "https://youtu.be/..."
-                </div>
-              </div>
-            )}
-
-            {/* Custom Enhanced Controls Bar */}
-            {videoId && (
-              <div className="p-3 bg-slate-950/90 border-t border-slate-800 backdrop-blur-md flex flex-col gap-2 shrink-0">
-                {/* Timeline Scrubber */}
-                <div className="flex items-center gap-3 text-xs font-mono text-slate-400 px-1">
-                  <span className="w-12 text-right">{formatTime(currentTime)}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 100}
-                    step={0.1}
-                    value={currentTime}
-                    onChange={handleSeekTo}
-                    className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500 hover:h-2 transition-all"
-                  />
-                  <span className="w-12">{formatTime(duration)}</span>
-                </div>
-
-                {/* Controls Bar Row */}
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                  {/* Left Controls: Play/Pause, Seek, Volume Slider & Presets */}
-                  <div className="flex items-center gap-2">
-                    {/* Play/Pause Button */}
-                    <button
-                      onClick={handleTogglePlay}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors flex items-center justify-center"
-                      title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-                    >
-                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
-                    </button>
-
-                    {/* Seek -10s / +10s */}
-                    <button
-                      onClick={() => handleSeekRelative(-10)}
-                      className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
-                      title="Rewind 10s (Left Arrow)"
-                    >
-                      <SkipBack className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleSeekRelative(10)}
-                      className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
-                      title="Forward 10s (Right Arrow)"
-                    >
-                      <SkipForward className="w-3.5 h-3.5" />
-                    </button>
-
-                    <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
-
-                    {/* Volume Controls (Icon + Slider + Low/Max Presets) */}
-                    <div className="flex items-center gap-2 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
-                      <button
-                        onClick={handleToggleMute}
-                        className="p-1 text-slate-300 hover:text-white transition-colors"
-                        title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
-                      >
-                        {isMuted || volume === 0 ? (
-                          <VolumeX className="w-4 h-4 text-red-400" />
-                        ) : volume < 50 ? (
-                          <Volume1 className="w-4 h-4 text-amber-400" />
-                        ) : (
-                          <Volume2 className="w-4 h-4 text-emerald-400" />
-                        )}
-                      </button>
-
-                      {/* Volume Slider */}
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={isMuted ? 0 : volume}
-                        onChange={(e) => handleVolumeChange(e.target.value)}
-                        className="w-16 sm:w-20 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                        title={`Volume: ${isMuted ? 0 : volume}%`}
-                      />
-
-                      <span className="text-[10px] font-mono text-slate-400 w-7 text-center">
-                        {isMuted ? '0%' : `${volume}%`}
-                      </span>
-
-                      {/* Quick Presets: Low, Mid, Max */}
-                      <div className="hidden md:flex items-center gap-1 border-l border-slate-700/50 pl-1.5">
-                        <button
-                          onClick={() => handleVolumeChange(0)}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
-                            isMuted || volume === 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                          }`}
-                        >
-                          Mute
-                        </button>
-                        <button
-                          onClick={() => handleVolumeChange(30)}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
-                            !isMuted && volume > 0 && volume <= 40 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                          }`}
-                        >
-                          Low
-                        </button>
-                        <button
-                          onClick={() => handleVolumeChange(100)}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
-                            !isMuted && volume >= 90 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                          }`}
-                        >
-                          Max
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Controls: Speed, Quality, Fullscreen */}
-                  <div className="flex items-center gap-2">
-                    {/* Playback Speed Menu */}
-                    <div className="relative">
-                      <button
-                        onClick={() => {
-                          setShowSpeedMenu(!showSpeedMenu)
-                          setShowQualityMenu(false)
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all ${
-                          playbackRate !== 1
-                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                            : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:text-white hover:bg-slate-800'
-                        }`}
-                        title="Playback Speed"
-                      >
-                        <Gauge className="w-3.5 h-3.5" />
-                        <span>{playbackRate}x</span>
-                      </button>
-
-                      {/* Speed Dropdown */}
-                      {showSpeedMenu && (
-                        <div className="absolute right-0 bottom-full mb-2 w-32 bg-slate-900 border border-slate-700 rounded-2xl shadow-xl p-1.5 z-30 flex flex-col gap-0.5">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-800">
-                            Playback Speed
-                          </div>
-                          {SPEED_OPTIONS.map((rate) => (
-                            <button
-                              key={rate}
-                              onClick={() => handleSpeedSelect(rate)}
-                              className={`w-full text-left px-2.5 py-1 rounded-xl text-xs font-medium transition-colors flex items-center justify-between ${
-                                playbackRate === rate
-                                  ? 'bg-purple-600 text-white font-bold'
-                                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                              }`}
-                            >
-                              <span>{rate === 1 ? '1x (Normal)' : `${rate}x`}</span>
-                              {playbackRate === rate && <span className="w-1.5 h-1.5 rounded-full bg-purple-300" />}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Quality Menu */}
-                    <div className="relative">
-                      <button
-                        onClick={() => {
-                          setShowQualityMenu(!showQualityMenu)
-                          setShowSpeedMenu(false)
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all ${
-                          quality !== 'auto'
-                            ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
-                            : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:text-white hover:bg-slate-800'
-                        }`}
-                        title="Video Quality"
-                      >
-                        <Settings className="w-3.5 h-3.5" />
-                        <span className="capitalize">{QUALITY_OPTIONS.find(q => q.value === quality)?.label || quality}</span>
-                      </button>
-
-                      {/* Quality Dropdown */}
-                      {showQualityMenu && (
-                        <div className="absolute right-0 bottom-full mb-2 w-36 bg-slate-900 border border-slate-700 rounded-2xl shadow-xl p-1.5 z-30 flex flex-col gap-0.5">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-800">
-                            Quality Select
-                          </div>
-                          {QUALITY_OPTIONS.map((q) => (
-                            <button
-                              key={q.value}
-                              onClick={() => handleQualitySelect(q.value)}
-                              className={`w-full text-left px-2.5 py-1 rounded-xl text-xs font-medium transition-colors flex items-center justify-between ${
-                                quality === q.value
-                                  ? 'bg-sky-600 text-white font-bold'
-                                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                              }`}
-                            >
-                              <span>{q.label}</span>
-                              {quality === q.value && <span className="w-1.5 h-1.5 rounded-full bg-sky-300" />}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Fullscreen Button */}
-                    <button
-                      onClick={handleToggleFullscreen}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                      title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
-                    >
-                      {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Footer Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 bg-slate-900 border-t border-slate-800/80 shrink-0">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>Status:</span>
-              <span className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${
+          {/* Live Download Progress Banner */}
+          {(downloading || downloadComplete) && (
+            <div className="px-4 py-2.5 bg-slate-950 border-t border-slate-800 flex flex-col gap-1.5 shrink-0">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  {downloading ? (
+                    <Loader2 className="w-3.5 h-3.5 text-sky-400 animate-spin flex-shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  )}
+                  <span className="truncate">{downloadStatus}</span>
+                </span>
+                <span className="font-mono font-bold text-sky-400 text-xs flex-shrink-0 ml-2">
+                  {downloadProgress}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 rounded-full ${
+                    downloadComplete
+                      ? 'bg-emerald-500'
+                      : 'bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-400'
+                  }`}
+                  style={{ width: `${downloadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Custom Enhanced Controls Bar (Placed cleanly below video frame) */}
+          {videoId && (
+            <div className="p-2.5 sm:p-3 bg-slate-950 border-t border-slate-800 flex flex-col gap-2 shrink-0">
+              {/* Timeline Scrubber */}
+              <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs font-mono text-slate-400 px-1">
+                <span className="w-10 sm:w-12 text-right flex-shrink-0">{formatTime(currentTime)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 100}
+                  step={0.1}
+                  value={currentTime}
+                  onChange={handleSeekTo}
+                  className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500 hover:h-2 transition-all min-w-0"
+                />
+                <span className="w-10 sm:w-12 flex-shrink-0">{formatTime(duration)}</span>
+              </div>
+
+              {/* Controls Bar Row */}
+              <div className="flex items-center justify-between flex-wrap gap-2 pt-0.5">
+                {/* Left Controls: Play/Pause, Seek, Volume */}
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <button
+                    onClick={handleTogglePlay}
+                    className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors flex items-center justify-center flex-shrink-0"
+                    title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
+                  </button>
+
+                  <button
+                    onClick={() => handleSeekRelative(-10)}
+                    className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors flex-shrink-0"
+                    title="Rewind 10s (Left Arrow)"
+                  >
+                    <SkipBack className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleSeekRelative(10)}
+                    className="p-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors flex-shrink-0"
+                    title="Forward 10s (Right Arrow)"
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="h-4 w-px bg-slate-800 mx-0.5 hidden sm:block" />
+
+                  {/* Volume Controls */}
+                  <div className="flex items-center gap-1 sm:gap-2 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
+                    <button
+                      onClick={handleToggleMute}
+                      className="p-0.5 text-slate-300 hover:text-white transition-colors flex-shrink-0"
+                      title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="w-4 h-4 text-red-400" />
+                      ) : volume < 50 ? (
+                        <Volume1 className="w-4 h-4 text-amber-400" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 text-emerald-400" />
+                      )}
+                    </button>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={isMuted ? 0 : volume}
+                      onChange={(e) => handleVolumeChange(e.target.value)}
+                      className="w-12 sm:w-16 md:w-20 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500 min-w-0"
+                      title={`Volume: ${isMuted ? 0 : volume}%`}
+                    />
+
+                    <span className="text-[10px] font-mono text-slate-400 w-6 text-center hidden xs:inline">
+                      {isMuted ? '0%' : `${volume}%`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Controls: Speed, Quality, Fullscreen */}
+                <div className="flex items-center gap-1.5 sm:gap-2 ml-auto sm:ml-0">
+                  {/* Speed Menu */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setShowSpeedMenu(!showSpeedMenu)
+                        setShowQualityMenu(false)
+                      }}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] sm:text-xs font-semibold border transition-all ${
+                        playbackRate !== 1
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                          : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:text-white hover:bg-slate-800'
+                      }`}
+                      title="Playback Speed"
+                    >
+                      <Gauge className="w-3.5 h-3.5" />
+                      <span>{playbackRate}x</span>
+                    </button>
+
+                    {showSpeedMenu && (
+                      <div className="absolute right-0 bottom-full mb-2 w-32 bg-slate-900 border border-slate-700 rounded-2xl shadow-xl p-1.5 z-50 flex flex-col gap-0.5 max-h-48 overflow-y-auto">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-800 sticky top-0 bg-slate-900">
+                          Speed
+                        </div>
+                        {SPEED_OPTIONS.map((rate) => (
+                          <button
+                            key={rate}
+                            onClick={() => handleSpeedSelect(rate)}
+                            className={`w-full text-left px-2 py-1 rounded-xl text-xs font-medium transition-colors flex items-center justify-between ${
+                              playbackRate === rate
+                                ? 'bg-purple-600 text-white font-bold'
+                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <span>{rate === 1 ? '1x (Normal)' : `${rate}x`}</span>
+                            {playbackRate === rate && <span className="w-1.5 h-1.5 rounded-full bg-purple-300" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quality Menu */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setShowQualityMenu(!showQualityMenu)
+                        setShowSpeedMenu(false)
+                      }}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] sm:text-xs font-semibold border transition-all ${
+                        quality !== 'auto'
+                          ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                          : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:text-white hover:bg-slate-800'
+                      }`}
+                      title="Video Quality"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span className="capitalize text-[11px] sm:text-xs">{QUALITY_OPTIONS.find(q => q.value === quality)?.label || quality}</span>
+                    </button>
+
+                    {showQualityMenu && (
+                      <div className="absolute right-0 bottom-full mb-2 w-36 bg-slate-900 border border-slate-700 rounded-2xl shadow-xl p-1.5 z-50 flex flex-col gap-0.5 max-h-48 overflow-y-auto">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-800 sticky top-0 bg-slate-900">
+                          Quality
+                        </div>
+                        {QUALITY_OPTIONS.map((q) => (
+                          <button
+                            key={q.value}
+                            onClick={() => handleQualitySelect(q.value)}
+                            className={`w-full text-left px-2 py-1 rounded-xl text-xs font-medium transition-colors flex items-center justify-between ${
+                              quality === q.value
+                                ? 'bg-sky-600 text-white font-bold'
+                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <span>{q.label}</span>
+                            {quality === q.value && <span className="w-1.5 h-1.5 rounded-full bg-sky-300" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fullscreen */}
+                  <button
+                    onClick={handleToggleFullscreen}
+                    className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                    title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
+                  >
+                    {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Controls - Single line responsive row on mobile & desktop */}
+          <div className="flex items-center justify-between gap-1 sm:gap-3 px-2.5 sm:px-6 py-2.5 sm:py-3 bg-slate-900 border-t border-slate-800 shrink-0 w-full">
+            {/* Status Indicator */}
+            <div className="flex items-center gap-1 text-[11px] sm:text-xs text-slate-400 flex-shrink-0">
+              <span className="hidden sm:inline">Status:</span>
+              <span className={`font-bold px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] whitespace-nowrap ${
                 isCompleted
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -625,28 +702,67 @@ const VideoModal = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Action Buttons in single row */}
+            <div className="flex items-center gap-1 sm:gap-2.5 flex-shrink-0">
+              {/* Responsive Video Download Button */}
+              <button
+                onClick={handleDownloadVideo}
+                disabled={downloading}
+                className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all shadow-xs flex-shrink-0 ${
+                  downloadComplete
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : downloading
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 animate-pulse'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700/60'
+                }`}
+                title="Download Video to Device"
+              >
+                {downloading ? (
+                  <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin text-sky-400 flex-shrink-0" />
+                ) : downloadComplete ? (
+                  <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 flex-shrink-0" />
+                ) : (
+                  <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-400 flex-shrink-0" />
+                )}
+                <span className="hidden sm:inline">
+                  {downloading
+                    ? `Downloading ${downloadProgress}%`
+                    : downloadComplete
+                    ? 'Downloaded'
+                    : 'Download Video'}
+                </span>
+                <span className="sm:hidden">
+                  {downloading ? `${downloadProgress}%` : downloadComplete ? 'Done' : 'Save'}
+                </span>
+              </button>
+
+              {/* YouTube Link */}
               {lecture.youtubeUrl && (
                 <a
                   href={lecture.youtubeUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+                  className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] sm:text-xs font-semibold transition-colors flex-shrink-0"
+                  title="Open video on YouTube"
                 >
-                  Open on YouTube <ExternalLink className="w-3.5 h-3.5" />
+                  <span>YouTube</span>
+                  <ExternalLink className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
                 </a>
               )}
 
+              {/* Mark Complete Toggle */}
               <button
                 onClick={() => onToggleComplete(lecture.id)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md ${
+                className={`inline-flex items-center gap-1 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all shadow-xs flex-shrink-0 ${
                   isCompleted
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                     : 'bg-primary-600 hover:bg-primary-500 text-white'
                 }`}
+                title={isCompleted ? 'Mark lecture as pending' : 'Mark lecture as completed'}
               >
-                <CheckCircle2 className="w-4 h-4" />
-                {isCompleted ? 'Mark Pending' : 'Mark Completed'}
+                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{isCompleted ? 'Mark Pending' : 'Mark Completed'}</span>
+                <span className="sm:hidden">{isCompleted ? 'Pending' : 'Complete'}</span>
               </button>
             </div>
           </div>

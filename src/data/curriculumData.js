@@ -25,10 +25,20 @@ export const CURRICULUM_DATA = {
         name: 'Unit 2: Numerical Ability',
         order: 2,
         lectures: [
-          { id: 'lec-ga-2-1', title: 'Arithmetic & Number Systems', order: 1, youtubeUrl: '' },
-          { id: 'lec-ga-2-2', title: 'Algebra & Equations', order: 2, youtubeUrl: '' },
-          { id: 'lec-ga-2-3', title: 'Geometry & Mensuration', order: 3, youtubeUrl: '' },
-          { id: 'lec-ga-2-4', title: 'Data Interpretation', order: 4, youtubeUrl: '' },
+          { id: 'lec-ga-2-1', title: 'Aptitude Preparation - Introduction & Strategy', order: 1, youtubeUrl: 'https://www.youtube.com/watch?v=hlyal4sR0m8' },
+          { id: 'lec-ga-2-2', title: 'Live Classes & Course Overview', order: 2, youtubeUrl: 'https://www.youtube.com/watch?v=-Y36chnRFxU' },
+          { id: 'lec-ga-2-3', title: 'Time and Work', order: 3, youtubeUrl: 'https://www.youtube.com/watch?v=o7pY9hCqDZk' },
+          { id: 'lec-ga-2-4', title: 'Time and Distance', order: 4, youtubeUrl: 'https://www.youtube.com/watch?v=S9FNu8vrvI4' },
+          { id: 'lec-ga-2-5', title: 'Boats and Streams', order: 5, youtubeUrl: 'https://www.youtube.com/watch?v=HUMISdejRmw' },
+          { id: 'lec-ga-2-6', title: 'Ratio and Proportion', order: 6, youtubeUrl: 'https://www.youtube.com/watch?v=UzH3Q2vqAxc' },
+          { id: 'lec-ga-2-7', title: 'Problems on Age', order: 7, youtubeUrl: 'https://www.youtube.com/watch?v=HYyPAxHAJyk' },
+          { id: 'lec-ga-2-8', title: 'Area & Mensuration', order: 8, youtubeUrl: 'https://www.youtube.com/watch?v=DCo_1uY4pSE' },
+          { id: 'lec-ga-2-9', title: 'Permutations & Combinations', order: 9, youtubeUrl: 'https://www.youtube.com/watch?v=9pqePR1hAxQ' },
+          { id: 'lec-ga-2-10', title: 'Probability', order: 10, youtubeUrl: 'https://www.youtube.com/watch?v=8Q-uhgxvV5s' },
+          { id: 'lec-ga-2-11', title: 'Simple Interest', order: 11, youtubeUrl: 'https://www.youtube.com/watch?v=193rcgrkUcI' },
+          { id: 'lec-ga-2-12', title: 'Compound Interest', order: 12, youtubeUrl: 'https://www.youtube.com/watch?v=SCF44DHpFuY' },
+          { id: 'lec-ga-2-13', title: 'Number System', order: 13, youtubeUrl: 'https://www.youtube.com/watch?v=39Hbzfik_zw' },
+          { id: 'lec-ga-2-14', title: 'Geometry', order: 14, youtubeUrl: 'https://www.youtube.com/watch?v=YIFswAXE0BE' },
         ]
       },
       {
@@ -36,8 +46,21 @@ export const CURRICULUM_DATA = {
         name: 'Unit 3: Analytical Aptitude',
         order: 3,
         lectures: [
-          { id: 'lec-ga-3-1', title: 'Deductive & Inductive Reasoning', order: 1, youtubeUrl: '' },
-          { id: 'lec-ga-3-2', title: 'Logical Relations & Syllogisms', order: 2, youtubeUrl: '' },
+          { id: 'lec-ga-3-1', title: 'Clocks - Part 1', order: 1, youtubeUrl: 'https://www.youtube.com/watch?v=qDkaSVKyDXA' },
+          { id: 'lec-ga-3-2', title: 'Clocks - Part 2 (Questions)', order: 2, youtubeUrl: 'https://www.youtube.com/watch?v=NSghGQum3EI' },
+          { id: 'lec-ga-3-3', title: 'Calendar - Part 1', order: 3, youtubeUrl: 'https://www.youtube.com/watch?v=VW0XH_clKE4' },
+          { id: 'lec-ga-3-4', title: 'Calendar - Part 2 (Questions)', order: 4, youtubeUrl: 'https://www.youtube.com/watch?v=iiSvQ7FNVmA' },
+          { id: 'lec-ga-3-5', title: 'Direction Sense Test', order: 5, youtubeUrl: 'https://www.youtube.com/watch?v=_Xj2Ux_RO8o' },
+          { id: 'lec-ga-3-6', title: 'Blood Relations', order: 6, youtubeUrl: 'https://www.youtube.com/watch?v=6DNzpn8uhwc' },
+          { id: 'lec-ga-3-7', title: 'Sitting Arrangement (Part 1)', order: 7, youtubeUrl: 'https://www.youtube.com/watch?v=qZeIDdAVvTQ' },
+          { id: 'lec-ga-3-8', title: 'Sitting Arrangement (Part 2)', order: 8, youtubeUrl: 'https://www.youtube.com/watch?v=pYL9ADHxELI' },
+          { id: 'lec-ga-3-9', title: 'Venn Diagram & Dot Fixing', order: 9, youtubeUrl: 'https://www.youtube.com/watch?v=t4vpUg8lP4E' },
+          { id: 'lec-ga-3-10', title: 'Syllogism', order: 10, youtubeUrl: 'https://www.youtube.com/watch?v=mStJh_0mO0s' },
+          { id: 'lec-ga-3-11', title: 'Letter Series (Part 1)', order: 11, youtubeUrl: 'https://www.youtube.com/watch?v=HPMYh45AIRw' },
+          { id: 'lec-ga-3-12', title: 'Letter Series (Part 2)', order: 12, youtubeUrl: 'https://www.youtube.com/watch?v=5ooKsdKSjBo' },
+          { id: 'lec-ga-3-13', title: 'Number Series (Part 1)', order: 13, youtubeUrl: 'https://www.youtube.com/watch?v=nfovdgA2tuw' },
+          { id: 'lec-ga-3-14', title: 'Number Series (Part 2)', order: 14, youtubeUrl: 'https://www.youtube.com/watch?v=_qiU_YGGZBg' },
+          { id: 'lec-ga-3-15', title: 'Coding-Decoding', order: 15, youtubeUrl: 'https://www.youtube.com/watch?v=ZXcULvjpQlM' },
         ]
       },
       {
@@ -45,8 +68,9 @@ export const CURRICULUM_DATA = {
         name: 'Unit 4: Spatial Aptitude',
         order: 4,
         lectures: [
-          { id: 'lec-ga-4-1', title: 'Transformation of Shapes', order: 1, youtubeUrl: '' },
-          { id: 'lec-ga-4-2', title: 'Paper Folding & Pattern Recognition', order: 2, youtubeUrl: '' },
+          { id: 'lec-ga-4-1', title: 'Water and Mirror Images', order: 1, youtubeUrl: 'https://www.youtube.com/watch?v=H6HQzVUelTI' },
+          { id: 'lec-ga-4-2', title: 'Transformation of Shapes', order: 2, youtubeUrl: '' },
+          { id: 'lec-ga-4-3', title: 'Paper Folding & Pattern Recognition', order: 3, youtubeUrl: '' },
         ]
       }
     ]

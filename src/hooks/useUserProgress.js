@@ -2,19 +2,13 @@
 // Real-time hook for the current user's completed lecture IDs.
 // Used by subject/lecture pages to show progress checkboxes and bars.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth }             from '@/contexts/AuthContext'
 import { subscribeToUserProgress } from '@/firebase/firestore'
 
 /**
  * Returns the user's progress data with real-time Firestore updates.
- *
- * @returns {{
- *   completedIds:  Set<string>,   // Set of completed lecture IDs (fast lookup)
- *   loading:       boolean,
- *   error:         string | null,
- *   isCompleted:   (lectureId: string) => boolean,
- * }}
+ * Memoized to prevent re-render cascades in long lists.
  */
 const useUserProgress = () => {
   const { uid }   = useAuth()
@@ -31,7 +25,7 @@ const useUserProgress = () => {
     const unsubscribe = subscribeToUserProgress(
       uid,
       (progressData) => {
-        setData(progressData)
+        setData(progressData || { completedLectureIds: [] })
         setLoading(false)
         setError(null)
       },
@@ -45,14 +39,22 @@ const useUserProgress = () => {
     return unsubscribe
   }, [uid])
 
-  // Convert to a Set for O(1) lookups
-  const completedIds = new Set(data?.completedLectureIds ?? [])
+  // Convert to a Set for O(1) lookups memoized on data
+  const completedIds = useMemo(() => {
+    return new Set(data?.completedLectureIds ?? [])
+  }, [data?.completedLectureIds])
+
+  // Memoized lookup helper
+  const isCompleted = useCallback(
+    (lectureId) => completedIds.has(lectureId),
+    [completedIds]
+  )
 
   return {
     completedIds,
     loading,
     error,
-    isCompleted: (lectureId) => completedIds.has(lectureId),
+    isCompleted,
     totalCompleted: completedIds.size,
   }
 }
