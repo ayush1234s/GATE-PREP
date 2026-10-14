@@ -16,10 +16,10 @@ import toast from 'react-hot-toast'
 
 // ─── Admin nav items (sidebar) ────────────────────────────────────────────────
 const ADMIN_NAV = [
-  { to: '/admin/dashboard',      icon: LayoutDashboard, label: 'Dashboard'       },
-  { to: '/admin/users',          icon: Users,           label: 'Users Control'   },
-  { to: '/admin/curriculum',     icon: BookOpen,        label: 'Curriculum'      },
-  { to: '/admin/notifications',  icon: Megaphone,       label: 'Notifications'   },
+  { to: '/admin/dashboard',      icon: LayoutDashboard, label: 'Dashboard'           },
+  { to: '/admin/users',          icon: Users,           label: 'Users Control'       },
+  { to: '/admin/curriculum',     icon: BookOpen,        label: 'Curriculum'          },
+  { to: '/admin/notifications',  icon: Megaphone,       label: 'Notification Center' },
 ]
 
 // ─── Sidebar nav link ─────────────────────────────────────────────────────────

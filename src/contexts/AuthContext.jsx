@@ -23,6 +23,41 @@ export const AuthProvider = ({ children }) => {
   // Subscribe to Firebase auth state changes & real-time profile updates
   useEffect(() => {
     let unsubscribeProfile = null
+    let activeUser = null
+
+    // Firebase restores a persisted user before the app renders. Force a token
+    // refresh when the app regains focus so revoked/expired sessions are not
+    // allowed to keep displaying protected pages.
+    const validateSession = async () => {
+      if (!activeUser) return
+
+      try {
+        await activeUser.getIdToken(true)
+      } catch (err) {
+        const invalidSessionCodes = [
+          'auth/invalid-user-token',
+          'auth/user-token-expired',
+          'auth/user-token-revoked',
+          'auth/user-disabled',
+          'auth/user-not-found',
+        ]
+
+        // Do not sign a user out just because they are temporarily offline.
+        if (!invalidSessionCodes.includes(err?.code)) {
+          console.warn('[Auth] Session validation could not be completed:', err)
+          return
+        }
+
+        console.info('[Auth] Session is no longer valid. Signing out.')
+        await logOut().catch(() => {})
+      }
+    }
+
+    const handleSessionCheck = () => {
+      if (document.visibilityState === 'visible') {
+        void validateSession()
+      }
+    }
 
     const unsubscribeAuth = subscribeToAuthChanges((firebaseUser) => {
       // Clean up previous profile listener if any
@@ -31,9 +66,14 @@ export const AuthProvider = ({ children }) => {
         unsubscribeProfile = null
       }
 
+      activeUser = firebaseUser
       setCurrentUser(firebaseUser)
 
       if (firebaseUser) {
+        // Also validate immediately on a fresh page load, not only after the
+        // browser tab receives focus again.
+        void validateSession()
+
         // Subscribe in real-time to Firestore user profile
         unsubscribeProfile = subscribeToUserProfile(
           firebaseUser.uid,
@@ -100,10 +140,15 @@ export const AuthProvider = ({ children }) => {
       }
     })
 
+    window.addEventListener('focus', handleSessionCheck)
+    document.addEventListener('visibilitychange', handleSessionCheck)
+
     // Cleanup subscriptions on unmount
     return () => {
       if (unsubscribeAuth) unsubscribeAuth()
       if (unsubscribeProfile) unsubscribeProfile()
+      window.removeEventListener('focus', handleSessionCheck)
+      document.removeEventListener('visibilitychange', handleSessionCheck)
     }
   }, [])
 

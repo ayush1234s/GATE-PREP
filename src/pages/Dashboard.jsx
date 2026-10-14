@@ -6,11 +6,12 @@ import { useMemo }       from 'react'
 import { motion }        from 'framer-motion'
 import {
   BookOpen, CheckCircle2, Clock, BarChart3,
-  BookMarked, Flame, ArrowRight, Sparkles, Shield
+  BookMarked, Flame, ArrowRight, Sparkles, Shield, Bell
 } from 'lucide-react'
 import { Link }          from 'react-router-dom'
 import { useAuth }       from '@/contexts/AuthContext'
 import useUserProgress   from '@/hooks/useUserProgress'
+import useNotifications  from '@/hooks/useNotifications'
 import { CURRICULUM_DATA } from '@/data/curriculumData'
 import { formatDate }    from '@/utils/helpers'
 import WelcomeBanner     from '@/components/dashboard/WelcomeBanner'
@@ -46,6 +47,15 @@ const itemVariants = {
 const Dashboard = () => {
   const { userProfile, loading: authLoading, displayName } = useAuth()
   const { completedIds, loading: progressLoading }          = useUserProgress()
+  const { notifications }                                    = useNotifications()
+
+  // Official admin broadcast notices for Notification Center
+  const officialNotices = useMemo(() => {
+    return notifications.filter(n => n.type === 'admin_broadcast')
+  }, [notifications])
+
+  const latestNotice      = officialNotices[0] || null
+  const unreadNoticeCount = officialNotices.length
 
   const loading = authLoading || progressLoading
 
@@ -275,6 +285,45 @@ const Dashboard = () => {
                 <span className="font-bold text-primary-600 dark:text-primary-400 font-mono">{progressPct}%</span>
               </div>
             </div>
+          </motion.div>
+
+          {/* Notification Center Card */}
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -3 }}
+            className="bg-white dark:bg-card-dark rounded-3xl border border-amber-200/80 dark:border-amber-900/40 p-5 shadow-sm space-y-3 relative overflow-hidden group cursor-pointer"
+          >
+            <Link to="/notifications" className="block space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-amber-500" /> Notification Center
+                </p>
+                {unreadNoticeCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-slate-950 shadow-xs animate-pulse">
+                    {unreadNoticeCount} Notice{unreadNoticeCount > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-3 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0 text-base">
+                  📢
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                    {latestNotice ? latestNotice.subject : 'Official Notices & Study Materials'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    {latestNotice ? latestNotice.message : 'Read notices, solution PDFs & image updates'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 pt-0.5">
+                <span>Open Notice Board</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
           </motion.div>
         </div>
       </div>

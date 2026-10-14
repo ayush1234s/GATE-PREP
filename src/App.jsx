@@ -4,6 +4,8 @@
 
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { ScreenFlashProvider } from '@/contexts/ScreenFlashContext'
+import AnimatedScreenFlash from '@/components/common/AnimatedScreenFlash'
 import AppRouter        from '@/routes/AppRouter'
 import CustomToaster    from '@/components/common/CustomToaster'
 import OfflineModal     from '@/components/common/OfflineModal'
@@ -12,14 +14,19 @@ const App = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        {/* Global Offline connectivity popup modal */}
-        <OfflineModal />
+        <ScreenFlashProvider>
+          {/* Animated Screen Flash & Bouncing Intro Splash */}
+          <AnimatedScreenFlash />
 
-        {/* Global custom toast notifications with Close (✕) buttons */}
-        <CustomToaster />
+          {/* Global Offline connectivity popup modal */}
+          <OfflineModal />
 
-        {/* Main Application Router */}
-        <AppRouter />
+          {/* Global custom toast notifications with Close (✕) buttons */}
+          <CustomToaster />
+
+          {/* Main Application Router */}
+          <AppRouter />
+        </ScreenFlashProvider>
       </AuthProvider>
     </ThemeProvider>
   )

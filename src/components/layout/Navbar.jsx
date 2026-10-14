@@ -8,10 +8,11 @@ import { motion, AnimatePresence }     from 'framer-motion'
 import {
   Menu, Sun, Moon, Bell, LogOut, User, ChevronDown,
   Trash2, CheckCircle2, BookOpen, X, Sparkles, Fingerprint,
-  ClipboardList, ShieldCheck, Copy, Check
+  ClipboardList, ShieldCheck, Copy, Check, Zap
 } from 'lucide-react'
 import { useAuth }  from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useScreenFlash } from '@/contexts/ScreenFlashContext'
 import useNotifications from '@/hooks/useNotifications'
 import useUserProgress from '@/hooks/useUserProgress'
 import { CURRICULUM_DATA } from '@/data/curriculumData'
@@ -21,10 +22,11 @@ import NetworkIndicator from '@/components/common/NetworkIndicator'
 
 // Page title map
 const PAGE_TITLES = {
-  '/dashboard': { title: 'Dashboard',  sub: 'Overview & Analytics' },
-  '/subjects':  { title: 'Subjects',   sub: '10 Core GATE ECE Topics' },
-  '/tasks':     { title: 'My Tasks',   sub: 'Syllabus Tracker' },
-  '/profile':   { title: 'Profile',    sub: 'Account & Preferences' },
+  '/dashboard':     { title: 'Dashboard',           sub: 'Overview & Analytics' },
+  '/subjects':      { title: 'Subjects',            sub: '10 Core GATE ECE Topics' },
+  '/tasks':         { title: 'My Tasks',            sub: 'Syllabus Tracker' },
+  '/profile':       { title: 'Profile',             sub: 'Account & Preferences' },
+  '/notifications': { title: 'Notification Center', sub: 'Announcements & Media Updates' },
 }
 
 const formatTimeAgo = (timestamp) => {
@@ -40,6 +42,7 @@ const formatTimeAgo = (timestamp) => {
 
 // ─── Notification Dropdown Panel ──────────────────────────────────────────────
 const NotificationPanel = ({ onClose }) => {
+  const navigate = useNavigate()
   const { notifications, deleteNotification, clearAllNotifications } = useNotifications()
 
   const handleClearAll = async () => {
@@ -113,9 +116,15 @@ const NotificationPanel = ({ onClose }) => {
             return (
               <div
                 key={item.id}
+                onClick={() => {
+                  if (isAdmin) {
+                    navigate('/notifications')
+                    onClose()
+                  }
+                }}
                 className={`p-3.5 transition-colors group flex items-start justify-between gap-3 ${
                   isAdmin
-                    ? 'hover:bg-amber-50 dark:hover:bg-amber-900/10 border-l-2 border-amber-400'
+                    ? 'hover:bg-amber-50 dark:hover:bg-amber-900/10 border-l-2 border-amber-400 cursor-pointer'
                     : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                 }`}
               >
@@ -184,6 +193,17 @@ const NotificationPanel = ({ onClose }) => {
             )
           })
         )}
+      </div>
+
+      {/* Footer Link to Notification Center */}
+      <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 text-center">
+        <button
+          onClick={() => { navigate('/notifications'); onClose() }}
+          className="text-xs font-extrabold text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1.5"
+        >
+          <Bell className="w-3.5 h-3.5" />
+          <span>Open Full Notification Center</span>
+        </button>
       </div>
     </motion.div>
   )
@@ -283,6 +303,7 @@ const UserMenu = ({ onClose }) => {
 // ─── Main Navbar ──────────────────────────────────────────────────────────────
 const Navbar = ({ onMenuClick }) => {
   const { isDark, toggleTheme }   = useTheme()
+  const { triggerFlashScreen }    = useScreenFlash()
   const { displayName, photoURL, studentId } = useAuth()
   const { notifications }         = useNotifications()
   const { completedIds }          = useUserProgress()
@@ -355,13 +376,24 @@ const Navbar = ({ onMenuClick }) => {
         </div>
       </div>
 
-      {/* Right — Theme Toggle + Notifications + Pro User Pill */}
+      {/* Right — Theme Toggle + Screen Flash + Notifications + Pro User Pill */}
       <div className="flex items-center gap-2">
 
         {/* Network Indicator (Responsive) */}
         <div className="w-auto max-w-[140px] hidden sm:block">
           <NetworkIndicator compact popupDirection="down" />
         </div>
+
+        {/* Replay Animated Screen Flash Button */}
+        <button
+          id="screen-flash-trigger-btn"
+          onClick={triggerFlashScreen}
+          title="Replay Animated Screen Flash Intro"
+          aria-label="Replay Animated Screen Flash Intro"
+          className="p-2 rounded-xl text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors flex items-center justify-center relative group"
+        >
+          <Zap className="w-4 h-4 fill-amber-400/20 group-hover:scale-110 transition-transform" />
+        </button>
 
         {/* Theme Toggle */}
         <button

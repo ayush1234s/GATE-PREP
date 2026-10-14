@@ -20,8 +20,9 @@ const Dashboard      = lazy(() => import('@/pages/Dashboard'))
 const Subjects       = lazy(() => import('@/pages/Subjects'))
 const Units          = lazy(() => import('@/pages/Units'))
 const Lectures       = lazy(() => import('@/pages/Lectures'))
-const Tasks          = lazy(() => import('@/pages/Tasks'))
-const Profile        = lazy(() => import('@/pages/Profile'))
+const Tasks              = lazy(() => import('@/pages/Tasks'))
+const Profile            = lazy(() => import('@/pages/Profile'))
+const NotificationCenter = lazy(() => import('@/pages/NotificationCenter'))
 
 // Admin pages (wrapped in AdminLayout)
 const AdminLogin          = lazy(() => import('@/pages/admin/AdminLogin'))
@@ -74,6 +75,7 @@ const AppRouter = () => (
         <Route path="/subjects/:subjectId/:unitId" element={<PrivatePage><Lectures /></PrivatePage>} />
         <Route path="/tasks"                       element={<PrivatePage><Tasks     /></PrivatePage>} />
         <Route path="/profile"                     element={<PrivatePage><Profile   /></PrivatePage>} />
+        <Route path="/notifications"               element={<PrivatePage><NotificationCenter /></PrivatePage>} />
 
         {/* ── Catch-all ── */}
         <Route path="/"  element={<Navigate to="/dashboard" replace />} />

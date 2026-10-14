@@ -7,6 +7,7 @@ import { motion, AnimatePresence }  from 'framer-motion'
 import { Zap, Target, Sparkles, RefreshCw, ArrowRight, Award, ShieldCheck } from 'lucide-react'
 import { formatDate } from '@/utils/helpers'
 import { Link } from 'react-router-dom'
+import { useScreenFlash } from '@/contexts/ScreenFlashContext'
 
 const getGreeting = () => {
   const hour = new Date().getHours()
@@ -27,6 +28,7 @@ const MOTIVATIONAL_QUOTES = [
 
 const WelcomeBanner = ({ name, completedCount = 0, progress = 0 }) => {
   const { text: greetText, emoji } = useMemo(() => getGreeting(), [])
+  const { triggerFlashScreen } = useScreenFlash()
   const [quoteIndex, setQuoteIndex] = useState(0)
 
   const quote = MOTIVATIONAL_QUOTES[quoteIndex % MOTIVATIONAL_QUOTES.length]
@@ -128,6 +130,14 @@ const WelcomeBanner = ({ name, completedCount = 0, progress = 0 }) => {
               <Target className="w-3.5 h-3.5 text-amber-300" />
               <span>Track Progress</span>
             </Link>
+
+            <button
+              onClick={triggerFlashScreen}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs backdrop-blur border border-amber-500/30 transition-all hover:scale-105"
+            >
+              <Zap className="w-3.5 h-3.5 fill-amber-300" />
+              <span>Screen Flash Intro</span>
+            </button>
           </div>
         </div>
 
